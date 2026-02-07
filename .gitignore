@@ -90,3 +90,6 @@ android/app/*.jks
 android/app/*.keystore
 *.jks
 *.keystore
+
+# Large SQL files (can be downloaded separately)
+assets/sql/channel_logos.sql

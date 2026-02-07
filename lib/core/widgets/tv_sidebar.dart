@@ -1,0 +1,387 @@
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import '../theme/app_theme.dart';
+import '../navigation/app_router.dart';
+import '../i18n/app_strings.dart';
+import 'channel_logo_widget.dart';
+import '../../features/settings/providers/settings_provider.dart';
+import '../services/service_locator.dart';
+
+/// Destination class for external customization
+class TVSidebarDestination {
+  final IconData icon;
+  final String label;
+  const TVSidebarDestination({required this.icon, required this.label});
+}
+
+/// TV端共享侧边栏组件
+/// 失去焦点收起，获得焦点展开
+class TVSidebar extends StatefulWidget {
+  final int selectedIndex;
+  final Widget child;
+  final VoidCallback? onRight; // 按右键时的回调
+  
+  /// Custom destinations (optional). If provided, these will override default items.
+  final List<TVSidebarDestination>? destinations;
+  
+  /// Callback when a destination is selected (optional).
+  /// If provided, default navigation logic is bypassed.
+  final ValueChanged<int>? onDestinationSelected;
+
+  /// 用于外部获取菜单焦点节点列表
+  static List<FocusNode>? menuFocusNodes;
+
+  /// 当前选中的菜单索引
+  static int? selectedMenuIndex;
+
+  const TVSidebar({
+    super.key,
+    required this.selectedIndex,
+    required this.child,
+    this.onRight,
+    this.destinations,
+    this.onDestinationSelected,
+  });
+
+  @override
+  State<TVSidebar> createState() => _TVSidebarState();
+}
+
+class _TVSidebarState extends State<TVSidebar> {
+  final List<FocusNode> _menuFocusNodes = [];
+  Timer? _navDelayTimer; // 延迟导航定时器
+  int? _pendingNavIndex; // 待导航的菜单索引
+
+  @override
+  void initState() {
+    super.initState();
+    _initFocusNodes();
+    // 暴露给外部
+    TVSidebar.menuFocusNodes = _menuFocusNodes;
+    TVSidebar.selectedMenuIndex = widget.selectedIndex;
+  }
+  
+  void _initFocusNodes() {
+    // Determine count based on whether destinations are provided
+    final count = widget.destinations?.length ?? 6; 
+    
+    // Clear existing if any (though usually empty in initState)
+    for (final node in _menuFocusNodes) {
+      node.dispose();
+    }
+    _menuFocusNodes.clear();
+    
+    // Create new nodes
+    for (int i = 0; i < count; i++) {
+      _menuFocusNodes.add(FocusNode());
+    }
+  }
+
+  @override
+  void didUpdateWidget(TVSidebar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selectedIndex != widget.selectedIndex) {
+      TVSidebar.selectedMenuIndex = widget.selectedIndex;
+    }
+    
+    // Check if destinations length changed
+    final newCount = widget.destinations?.length ?? 6;
+    final oldCount = oldWidget.destinations?.length ?? 6;
+    
+    if (newCount != oldCount) {
+       _initFocusNodes();
+       TVSidebar.menuFocusNodes = _menuFocusNodes;
+    }
+  }
+
+  @override
+  void dispose() {
+    _navDelayTimer?.cancel();
+    for (final node in _menuFocusNodes) {
+      node.dispose();
+    }
+    // TVSidebar.menuFocusNodes = null;
+    // TVSidebar.selectedMenuIndex = null;
+    super.dispose();
+  }
+
+  List<_NavItem> _getDefaultNavItems(BuildContext context) {
+    final items = [
+      _NavItem(icon: Icons.home_rounded, label: AppStrings.of(context)?.home ?? 'Home', route: null),
+      _NavItem(icon: Icons.live_tv_rounded, label: AppStrings.of(context)?.channels ?? 'Channels', route: AppRouter.channels),
+      _NavItem(icon: Icons.playlist_play_rounded, label: AppStrings.of(context)?.playlistList ?? 'Playlist List', route: AppRouter.playlistList),
+      _NavItem(icon: Icons.favorite_rounded, label: AppStrings.of(context)?.favorites ?? 'Favorites', route: AppRouter.favorites),
+      _NavItem(icon: Icons.search_rounded, label: AppStrings.of(context)?.search ?? 'Search', route: AppRouter.search),
+      _NavItem(icon: Icons.settings_rounded, label: AppStrings.of(context)?.settings ?? 'Settings', route: AppRouter.settings),
+    ];
+    ServiceLocator.log.d('TVSidebar: _getNavItems returned ${items.length} items');
+    return items;
+  }
+  
+  List<_NavItem> _getDisplayItems(BuildContext context) {
+    if (widget.destinations != null) {
+      return widget.destinations!.map((d) => _NavItem(
+        icon: d.icon,
+        label: d.label,
+        route: null,
+      )).toList();
+    }
+    return _getDefaultNavItems(context);
+  }
+
+  void _onNavItemTap(int index, String? route) {
+    if (index == widget.selectedIndex) return;
+
+    // 切换页面时清理台标加载队列
+    clearLogoLoadingQueue();
+    
+    // If custom callback is provided, use it
+    if (widget.onDestinationSelected != null) {
+      widget.onDestinationSelected!(index);
+      return;
+    }
+
+    // Default Navigation Logic
+    if (index == 0) {
+      // 返回首页：直接 pop 到首页
+      Navigator.of(context).popUntil((r) => r.settings.name == AppRouter.home || r.isFirst);
+    } else if (route != null) {
+      if (widget.selectedIndex == 0) {
+        // 从首页跳转，直接 push
+        Navigator.pushNamed(context, route);
+      } else {
+        // 从其他页面跳转，使用 pushReplacementNamed 替换当前页面
+        Navigator.pushReplacementNamed(context, route);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final navItems = _getDisplayItems(context);
+    // 实时读取简单菜单设置
+    final simpleMenu = context.watch<SettingsProvider>().simpleMenu;
+    // 根据简单菜单设置决定是否展开
+    // 简单模式：始终收起，非简单模式：始终展开
+    final shouldExpand = !simpleMenu;
+    final width = shouldExpand ? 150.0 : 52.0;
+
+    return Row(
+      children: [
+        // 侧边栏
+        Focus(
+          onFocusChange: (hasFocus) {
+            // 当侧边栏获得焦点时,自动聚焦到当前选中的菜单项
+            if (hasFocus && widget.selectedIndex < _menuFocusNodes.length) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (widget.selectedIndex < _menuFocusNodes.length) {
+                    final targetNode = _menuFocusNodes[widget.selectedIndex];
+                    if (targetNode.canRequestFocus && !targetNode.hasFocus) {
+                      targetNode.requestFocus();
+                    }
+                }
+              });
+            }
+          },
+          child: Container(
+            width: width,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: Theme.of(context).brightness == Brightness.dark
+                    ? [
+                        AppTheme.getBackgroundColor(context),
+                        AppTheme.getPrimaryColor(context).withOpacity(0.15),
+                        AppTheme.getBackgroundColor(context),
+                      ]
+                    : [
+                        AppTheme.getBackgroundColor(context),
+                        AppTheme.getBackgroundColor(context).withOpacity(0.9),
+                        AppTheme.getPrimaryColor(context).withOpacity(0.08),
+                      ],
+              ),
+            ),
+            child: Column(
+              children: [
+                const SizedBox(height: 12),
+                // Logo
+                _buildLogo(),
+                const SizedBox(height: 16),
+                // Nav Items
+                Expanded(
+                  child: ListView.builder(
+                    padding: EdgeInsets.symmetric(horizontal: shouldExpand ? 6 : 4),
+                    itemCount: navItems.length,
+                    itemBuilder: (context, index) => _buildNavItem(index, navItems[index]),
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+            ),
+          ),
+        ),
+        // 主内容
+        Expanded(child: widget.child),
+      ],
+    );
+  }
+
+  Widget _buildLogo() {
+    // 实时读取简单菜单设置
+    final simpleMenu = context.watch<SettingsProvider>().simpleMenu;
+    final shouldExpand = !simpleMenu;
+    
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: shouldExpand ? 10 : 8),
+      child: shouldExpand
+          ? Row(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: Image.asset('assets/icons/app_icon.png', width: 24, height: 24),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ShaderMask(
+                    shaderCallback: (bounds) => AppTheme.getGradient(context).createShader(bounds),
+                    child: const Text('Luminoria', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white)),
+                  ),
+                ),
+              ],
+            )
+          : Center(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: Image.asset('assets/icons/app_icon.png', width: 24, height: 24),
+              ),
+            ),
+    );
+  }
+
+  Widget _buildNavItem(int index, _NavItem item) {
+    final isSelected = widget.selectedIndex == index;
+    final focusNode = index < _menuFocusNodes.length ? _menuFocusNodes[index] : null;
+    // 实时读取简单菜单设置
+    final simpleMenu = context.watch<SettingsProvider>().simpleMenu;
+    final shouldExpand = !simpleMenu;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Focus(
+        focusNode: focusNode,
+        autofocus: index == widget.selectedIndex,
+        onFocusChange: (hasFocus) {
+          // 强制刷新UI
+          if (mounted) setState(() {});
+
+          // 延迟触发导航
+          if (hasFocus && index != widget.selectedIndex) {
+            _navDelayTimer?.cancel();
+            _pendingNavIndex = index;
+            _navDelayTimer = Timer(const Duration(milliseconds: 500), () {
+              if (mounted && _pendingNavIndex == index) {
+                _onNavItemTap(index, item.route);
+              }
+            });
+          } else if (!hasFocus && _pendingNavIndex == index) {
+            // 失去焦点时取消待导航
+            _navDelayTimer?.cancel();
+            _pendingNavIndex = null;
+          }
+        },
+        onKey: (node, event) {
+          final key = event.logicalKey;
+          
+          // 处理选择键
+          if (event is KeyDownEvent && (key == LogicalKeyboardKey.select || key == LogicalKeyboardKey.enter || key == LogicalKeyboardKey.space)) {
+            // 手动确认时立即导航，取消延迟
+            _navDelayTimer?.cancel();
+            _pendingNavIndex = null;
+            _onNavItemTap(index, item.route);
+            return KeyEventResult.handled;
+          }
+          
+          // 处理右键
+          if (event is KeyDownEvent && key == LogicalKeyboardKey.arrowRight && widget.onRight != null) {
+            // 按右键时取消延迟导航
+            _navDelayTimer?.cancel();
+            _pendingNavIndex = null;
+            widget.onRight!();
+            return KeyEventResult.handled;
+          }
+          
+          // 阻止在边界时的上下键导航 - 同时处理KeyDown和KeyUp
+          final count = widget.destinations?.length ?? 6;
+          
+          if (key == LogicalKeyboardKey.arrowUp && index == 0) {
+            // 在第一个菜单项时，阻止向上导航
+            return KeyEventResult.handled;
+          }
+          if (key == LogicalKeyboardKey.arrowDown && index == count - 1) {
+            // 在最后一个菜单项时，阻止向下导航
+            return KeyEventResult.handled;
+          }
+          
+          return KeyEventResult.ignored;
+        },
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: GestureDetector(
+            onTap: () => _onNavItemTap(index, item.route),
+            child: Builder(
+              builder: (context) {
+                // 直接检查 FocusNode 的实际焦点状态
+                final isFocused = focusNode?.hasFocus ?? false;
+                // 当前选中的菜单项始终显示高亮（使用渐变背景）
+                // 如果有焦点但不是当前选中项，也显示焦点高亮
+                final showSelectedHighlight = isSelected;
+                final showFocusHighlight = isFocused && !isSelected;
+
+                return Container(
+                  padding: EdgeInsets.symmetric(horizontal: shouldExpand ? 10 : 8, vertical: 10),
+                  decoration: BoxDecoration(
+                    gradient: (showSelectedHighlight || showFocusHighlight) ? AppTheme.getGradient(context) : null,
+                    borderRadius: BorderRadius.circular(8),
+                    // 只要有焦点就显示边框（无论是否选中）
+                    border: isFocused
+                        ? Border.all(
+                            color: Colors.white.withOpacity(0.6),
+                            width: 2,
+                          )
+                        : null,
+                  ),
+                  child: shouldExpand
+                      ? Row(
+                          children: [
+                            Icon(item.icon, color: (showSelectedHighlight || showFocusHighlight) ? Colors.white : AppTheme.getTextMuted(context), size: 18),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(item.label,
+                                  style: TextStyle(
+                                    color: (showSelectedHighlight || showFocusHighlight) ? Colors.white : AppTheme.getTextSecondary(context),
+                                    fontSize: 12,
+                                    fontWeight: (showSelectedHighlight || showFocusHighlight) ? FontWeight.w600 : FontWeight.normal,
+                                  )),
+                            ),
+                          ],
+                        )
+                      : Center(child: Icon(item.icon, color: (showSelectedHighlight || showFocusHighlight) ? Colors.white : (isSelected ? AppTheme.getPrimaryColor(context) : AppTheme.getTextMuted(context)), size: 18)),
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NavItem {
+  final IconData icon;
+  final String label;
+  final String? route;
+  const _NavItem({required this.icon, required this.label, required this.route});
+}

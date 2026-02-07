@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Luminoria</string>
+    
+    <!-- Common -->
+    <string name="uncategorized">未分类</string>
+    <string name="channel">频道 %d</string>
+    <string name="category_name">分类名称</string>
+    
+    <!-- Player -->
+    <string name="press_back_again_to_exit">再按一次返回退出播放</string>
+    <string name="source_indicator">源 %1$d/%2$d</string>
+    <string name="hardware_decode">硬解</string>
+    <string name="software_decode">软解</string>
+    <string name="epg_ends_in_minutes">%d分钟后结束</string>
+    <string name="added_to_favorites">已添加到收藏夹</string>
+    <string name="removed_from_favorites">已从收藏夹移除</string>
+    <string name="operation_failed">操作失败</string>
+    <string name="now_playing">正在播放</string>
+    <string name="up_next">即将播放</string>
+    <string name="controls_hint">↑↓ 切换频道 · ← 短按切换源/双击分类 · 长按←→ 快退快进 · OK 播放/暂停 · 双击OK 收藏 · 长按OK 分屏</string>
+    <string name="category">分类</string>
+    <string name="channels">频道</string>
+    
+    <!-- Multi-screen -->
+    <string name="multi_screen_mode">分屏模式</string>
+    <string name="press_back_to_exit">返回键退出</string>
+    <string name="dpad_move_switch_audio">方向键 移动/切换声音</string>
+    <string name="ok_add_channel">OK 添加频道</string>
+    <string name="long_ok_clear_screen">长按OK 清空屏幕</string>
+    <string name="back_exit_to_single">返回 退出到单频道</string>
+    <string name="screen_number">屏幕 %d</string>
+    <string name="screen_activated">屏幕 %d 已激活</string>
+    <string name="screen_cleared">屏幕 %d 已清空</string>
+    <string name="press_ok_to_add_channel">按OK键添加频道</string>
+    <string name="playback_failed">播放失败</string>
+    <string name="all_channels">全部频道</string>
+    <string name="channel_count">%d 个频道</string>
+    <string name="exit_multi_screen">退出分屏</string>
+    <string name="currently_playing">当前正在播放: %s</string>
+    <string name="continue_playing">继续播放</string>
+    <string name="close">关闭</string>
+    <string name="cancel">取消</string>
+</resources>

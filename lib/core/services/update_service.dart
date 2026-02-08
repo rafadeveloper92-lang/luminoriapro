@@ -9,12 +9,9 @@ import '../models/app_update.dart';
 import 'service_locator.dart';
 
 class UpdateService {
-  // 使用 GitHub Pages 静态文件，无请求次数限制
-  // static const String _versionJsonUrl = 'https://shnulaa.github.io/FlutterIPTV/version.json';
-  // static const String _githubReleasesUrl = 'https://github.com/shnulaa/FlutterIPTV/releases';
-
-  static const String _versionJsonUrl = 'https://hk.gh-proxy.org/https://raw.githubusercontent.com/shnulaa/FlutterIPTV/main/docs/version.json';
-  static const String _githubReleasesUrl = 'https://github.com/shnulaa/FlutterIPTV/releases';
+  // URLs atualizadas para o repositório luminoriapro
+  static const String _versionJsonUrl = 'https://raw.githubusercontent.com/rafadeveloper92-lang/luminoriapro/main/docs/version.json';
+  static const String _githubReleasesUrl = 'https://github.com/rafadeveloper92-lang/luminoriapro/releases';
 
   // 检查更新的间隔时间（小时）
   static const int _checkUpdateInterval = 24;

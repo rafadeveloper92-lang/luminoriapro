@@ -130,6 +130,17 @@ KEY_ALIAS: alias da key
 base64 -i release-key.jks -o keystore.txt
 ```
 
+### Para builds com suas keys (.env) – opcional
+
+Se quiser que o app gerado pelo CI use suas keys reais (Supabase, TMDB, Stripe):
+
+1. Vá em: `Settings` → `Secrets and variables` → `Actions`
+2. **New repository secret**
+3. Nome: `ENV_FILE_CONTENT`
+4. Valor: cole **todo o conteúdo** do seu arquivo `.env` (as mesmas linhas que você tem localmente, com as keys reais).
+
+O workflow usa esse secret para criar o `.env` durante o build. Se você **não** configurar `ENV_FILE_CONTENT`, o build usa o `.env.example` (placeholders) e o app compilado terá valores vazios até você configurar de outra forma.
+
 ### Para iOS (Assinatura de IPA) - Avançado
 
 ⚠️ **Requer conta Apple Developer ($99/ano)**

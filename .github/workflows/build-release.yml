@@ -26,21 +26,24 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       
-      - name: Prepare assets for build
-        shell: pwsh
+      # Secret no GitHub: Settings → Secrets → Actions → ENV_FILE_CONTENT (conteúdo completo do .env)
+      - name: Create .env file
+        shell: bash
         env:
           ENV_FILE_CONTENT: ${{ secrets.ENV_FILE_CONTENT }}
         run: |
-          if ($env:ENV_FILE_CONTENT) {
-            Set-Content -Path .env -Value $env:ENV_FILE_CONTENT
-          } elseif (Test-Path .env.example) {
-            Copy-Item .env.example .env
-          } else {
-            Set-Content -Path .env -Value "# build placeholder"
-          }
-          $badges = "assets/images/badges"
-          if (-not (Test-Path $badges)) { New-Item -ItemType Directory -Path $badges -Force }
-          if (-not (Test-Path "$badges/.gitkeep")) { Set-Content -Path "$badges/.gitkeep" -Value "" }
+          if [ -n "$ENV_FILE_CONTENT" ]; then
+            echo "$ENV_FILE_CONTENT" > .env
+          fi
+      
+      - name: Prepare assets for build
+        shell: bash
+        run: |
+          if [ ! -f .env ]; then
+            [ -f .env.example ] && cp .env.example .env || echo '# placeholder' > .env
+          fi
+          mkdir -p assets/images/badges
+          touch assets/images/badges/.gitkeep
       
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -121,14 +124,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       
-      - name: Prepare assets for build
+      # Secret no GitHub: Settings → Secrets → Actions → ENV_FILE_CONTENT (conteúdo completo do .env)
+      - name: Create .env file
         env:
           ENV_FILE_CONTENT: ${{ secrets.ENV_FILE_CONTENT }}
         run: |
           if [ -n "$ENV_FILE_CONTENT" ]; then
             echo "$ENV_FILE_CONTENT" > .env
-          else
-            test -f .env || (test -f .env.example && cp .env.example .env) || echo '# build placeholder' > .env
+          fi
+      
+      - name: Prepare assets for build
+        run: |
+          if [ ! -f .env ]; then
+            [ -f .env.example ] && cp .env.example .env || echo '# placeholder' > .env
           fi
           mkdir -p assets/images/badges
           touch assets/images/badges/.gitkeep
@@ -196,14 +204,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       
-      - name: Prepare assets for build
+      # Secret no GitHub: Settings → Secrets → Actions → ENV_FILE_CONTENT (conteúdo completo do .env)
+      - name: Create .env file
         env:
           ENV_FILE_CONTENT: ${{ secrets.ENV_FILE_CONTENT }}
         run: |
           if [ -n "$ENV_FILE_CONTENT" ]; then
             echo "$ENV_FILE_CONTENT" > .env
-          else
-            test -f .env || (test -f .env.example && cp .env.example .env) || echo '# build placeholder' > .env
+          fi
+      
+      - name: Prepare assets for build
+        run: |
+          if [ ! -f .env ]; then
+            [ -f .env.example ] && cp .env.example .env || echo '# placeholder' > .env
           fi
           mkdir -p assets/images/badges
           touch assets/images/badges/.gitkeep

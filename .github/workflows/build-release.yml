@@ -26,9 +26,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       
-      - name: Create .env for build
+      - name: Prepare assets for build
+        shell: pwsh
         run: |
-          if (Test-Path .env.example) { Copy-Item .env.example .env } else { Set-Content -Path .env -Value "# placeholder" }
+          if (-not (Test-Path .env)) {
+            if (Test-Path .env.example) { Copy-Item .env.example .env } else { Set-Content -Path .env -Value "# build placeholder" }
+          }
+          $badges = "assets/images/badges"
+          if (-not (Test-Path $badges)) { New-Item -ItemType Directory -Path $badges -Force }
+          if (-not (Test-Path "$badges/.gitkeep")) { Set-Content -Path "$badges/.gitkeep" -Value "" }
       
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -109,8 +115,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       
-      - name: Create .env for build
-        run: cp -n .env.example .env 2>/dev/null || true; test -f .env || echo '# placeholder' > .env
+      - name: Prepare assets for build
+        run: |
+          test -f .env || (test -f .env.example && cp .env.example .env) || echo '# build placeholder' > .env
+          mkdir -p assets/images/badges
+          touch assets/images/badges/.gitkeep
       
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -174,8 +183,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       
-      - name: Create .env for build
-        run: cp -n .env.example .env 2>/dev/null || true; test -f .env || echo '# placeholder' > .env
+      - name: Prepare assets for build
+        run: |
+          test -f .env || (test -f .env.example && cp .env.example .env) || echo '# build placeholder' > .env
+          mkdir -p assets/images/badges
+          touch assets/images/badges/.gitkeep
       
       - name: Setup Flutter
         uses: subosito/flutter-action@v2

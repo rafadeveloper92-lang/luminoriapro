@@ -1,5 +1,5 @@
 # Uncomment this line to define a global platform for your project
-platform :ios, '14.0'
+platform :ios, '15.0'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
@@ -45,7 +45,7 @@ post_install do |installer|
       # Habilitar bitcode (se necessário)
       config.build_settings['ENABLE_BITCODE'] = 'NO'
       # Versão mínima do iOS
-      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '14.0'
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
       # Desabilitar aviso de assinatura de código
       config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
       # Otimizações para Swift

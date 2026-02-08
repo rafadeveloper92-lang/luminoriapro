@@ -26,8 +26,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       
-      # Secret no GitHub: Settings → Secrets → Actions → ENV_FILE_CONTENT (conteúdo completo do .env)
-      - name: Create .env file
+      # Imediatamente após checkout: .env e pasta badges ANTES de qualquer Flutter
+      - name: Prepare build environment
         shell: bash
         env:
           ENV_FILE_CONTENT: ${{ secrets.ENV_FILE_CONTENT }}
@@ -35,14 +35,13 @@ jobs:
           if [ -n "$ENV_FILE_CONTENT" ]; then
             echo "$ENV_FILE_CONTENT" > .env
           fi
-      
-      - name: Prepare assets for build
-        shell: bash
-        run: |
           if [ ! -f .env ]; then
             [ -f .env.example ] && cp .env.example .env || echo '# placeholder' > .env
           fi
           mkdir -p assets/images/badges
+          if [ ! -f assets/images/badges/placeholder.png ] && [ -f assets/icons/app_icon.png ]; then
+            cp assets/icons/app_icon.png assets/images/badges/placeholder.png
+          fi
           touch assets/images/badges/.gitkeep
       
       - name: Setup Flutter
@@ -124,21 +123,21 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       
-      # Secret no GitHub: Settings → Secrets → Actions → ENV_FILE_CONTENT (conteúdo completo do .env)
-      - name: Create .env file
+      # Imediatamente após checkout: .env e pasta badges ANTES de qualquer Flutter
+      - name: Prepare build environment
         env:
           ENV_FILE_CONTENT: ${{ secrets.ENV_FILE_CONTENT }}
         run: |
           if [ -n "$ENV_FILE_CONTENT" ]; then
             echo "$ENV_FILE_CONTENT" > .env
           fi
-      
-      - name: Prepare assets for build
-        run: |
           if [ ! -f .env ]; then
             [ -f .env.example ] && cp .env.example .env || echo '# placeholder' > .env
           fi
           mkdir -p assets/images/badges
+          if [ ! -f assets/images/badges/placeholder.png ] && [ -f assets/icons/app_icon.png ]; then
+            cp assets/icons/app_icon.png assets/images/badges/placeholder.png
+          fi
           touch assets/images/badges/.gitkeep
       
       - name: Setup Java
@@ -204,21 +203,21 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       
-      # Secret no GitHub: Settings → Secrets → Actions → ENV_FILE_CONTENT (conteúdo completo do .env)
-      - name: Create .env file
+      # Imediatamente após checkout: .env e pasta badges ANTES de qualquer Flutter
+      - name: Prepare build environment
         env:
           ENV_FILE_CONTENT: ${{ secrets.ENV_FILE_CONTENT }}
         run: |
           if [ -n "$ENV_FILE_CONTENT" ]; then
             echo "$ENV_FILE_CONTENT" > .env
           fi
-      
-      - name: Prepare assets for build
-        run: |
           if [ ! -f .env ]; then
             [ -f .env.example ] && cp .env.example .env || echo '# placeholder' > .env
           fi
           mkdir -p assets/images/badges
+          if [ ! -f assets/images/badges/placeholder.png ] && [ -f assets/icons/app_icon.png ]; then
+            cp assets/icons/app_icon.png assets/images/badges/placeholder.png
+          fi
           touch assets/images/badges/.gitkeep
       
       - name: Setup Flutter

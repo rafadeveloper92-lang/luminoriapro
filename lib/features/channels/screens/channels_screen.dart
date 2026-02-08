@@ -110,11 +110,13 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
     final size = MediaQuery.of(context).size;
     final isTV = PlatformDetector.isTV || size.width > 1200;
 
+    // No modo embedded (ex.: dentro da Home no desktop), não mostrar a sidebar de
+    // categorias para evitar "duas guias" (menu principal + categorias). Usar só
+    // o botão flutuante para abrir categorias.
+    final showGroupsSidebar = isTV && !widget.embedded;
     final content = Row(
       children: [
-        // Groups Sidebar (for TV and Desktop)
-        if (isTV) _buildGroupsSidebar(),
-        // Channels Grid
+        if (showGroupsSidebar) _buildGroupsSidebar(),
         Expanded(child: _buildChannelsContent()),
       ],
     );

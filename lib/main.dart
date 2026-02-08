@@ -29,6 +29,8 @@ import 'package:flutter_iptv/features/friends/providers/friends_provider.dart';
 import 'package:flutter_iptv/features/rank/providers/rank_provider.dart';
 import 'core/widgets/window_title_bar.dart';
 import 'core/config/license_config.dart';
+import 'core/services/friends_service.dart';
+import 'core/services/user_activity_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -213,7 +215,7 @@ class _DlnaAwareApp extends StatefulWidget {
   State<_DlnaAwareApp> createState() => _DlnaAwareAppState();
 }
 
-class _DlnaAwareAppState extends State<_DlnaAwareApp> with WindowListener {
+class _DlnaAwareAppState extends State<_DlnaAwareApp> with WindowListener, WidgetsBindingObserver {
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   String? _currentDlnaUrl; // 记录当前 DLNA 播放的 URL
 
@@ -225,6 +227,7 @@ class _DlnaAwareAppState extends State<_DlnaAwareApp> with WindowListener {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     ServiceLocator.log.d('_DlnaAwareApp.initState() 被调用', tag: 'AutoRefresh');
 
     // Windows 窗口关闭监听
@@ -280,11 +283,24 @@ class _DlnaAwareAppState extends State<_DlnaAwareApp> with WindowListener {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     if (Platform.isWindows) {
       windowManager.removeListener(this);
     }
     _autoRefreshService.stop();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (!LicenseConfig.isConfigured) return;
+    if (state == AppLifecycleState.resumed) {
+      UserActivityService.instance.ping();
+      FriendsService.instance.setUserStatus('online');
+    } else if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden) {
+      FriendsService.instance.setUserStatus('offline');
+    }
   }
 
   Future<void> _initAutoRefresh() async {

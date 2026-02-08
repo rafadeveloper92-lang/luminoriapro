@@ -47,6 +47,10 @@ class PlayerProvider extends ChangeNotifier {
   bool _isAutoSwitching = false; // 标记是否正在自动切换源
   bool _isAutoDetecting = false; // 标记是否正在自动检测源
 
+  /// Última URL/nome de VOD (filme/série) para re-tentar com software decoding em caso de erro de hardware
+  String? _lastVodUrl;
+  String? _lastVodName;
+
   // On Android TV, we use native player via Activity, so don't init any Flutter player
   // On Android phone/tablet and other platforms, use media_kit
   bool get _useNativePlayer => Platform.isAndroid && PlatformDetector.isTV;
@@ -498,14 +502,27 @@ class PlayerProvider extends ChangeNotifier {
 
   bool _shouldTrySoftwareFallback(String error) {
     final lowerError = error.toLowerCase();
-    return (lowerError.contains('codec') || lowerError.contains('decoder') || lowerError.contains('hwdec') || lowerError.contains('mediacodec')) && _retryCount < _maxRetries;
+    final isHwError = lowerError.contains('codec') ||
+        lowerError.contains('decoder') ||
+        lowerError.contains('hwdec') ||
+        lowerError.contains('mediacodec') ||
+        lowerError.contains('avhwdevicecontext'); // Failed to allocate AVHWDeviceContext (Windows/GPU)
+    return isHwError && _retryCount < _maxRetries;
   }
 
   void _attemptSoftwareFallback() {
     _retryCount++;
     final channelToPlay = _currentChannel;
+    final vodUrl = _lastVodUrl;
+    final vodName = _lastVodName;
     _initMediaKitPlayer(useSoftwareDecoding: true);
-    if (channelToPlay != null) playChannel(channelToPlay);
+    if (channelToPlay != null) {
+      playChannel(channelToPlay);
+    } else if (vodUrl != null && vodUrl.isNotEmpty) {
+      _lastVodUrl = null;
+      _lastVodName = null;
+      playUrl(vodUrl, name: vodName);
+    }
   }
 
   static String _normalizeStreamUrl(String url) => StreamUrlUtils.normalize(url);
@@ -626,6 +643,14 @@ class PlayerProvider extends ChangeNotifier {
       ServiceLocator.log.w('playUrl: Android TV 使用原生播放器，不支持此方法', tag: 'PlayerProvider');
       return;
     }
+
+    _lastVodUrl = url;
+    _lastVodName = name;
+
+    // Garantir que o player está inicializado (ex.: quando abre filme VOD sem canal na lista)
+    if (_mediaKitPlayer == null) {
+      _initPlayer();
+    }
     
     _state = PlayerState.loading;
     _error = null;
@@ -637,6 +662,8 @@ class PlayerProvider extends ChangeNotifier {
     try {
       final normalized = _normalizeStreamUrl(url);
       await _mediaKitPlayer?.open(Media(normalized));
+      // Forçar início da reprodução (VOD pode ficar em tela preta no Windows sem play explícito)
+      _mediaKitPlayer?.play();
       _state = PlayerState.playing;
     } catch (e) {
       _setError('Failed to play: $e');

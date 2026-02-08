@@ -9,14 +9,14 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/shnulaa/FlutterIPTV/releases">
-    <img src="https://img.shields.io/github/v/release/shnulaa/FlutterIPTV?include_prereleases" alt="Latest Release">
+  <a href="https://github.com/rafadeveloper92-lang/luminoriapro/releases">
+    <img src="https://img.shields.io/github/v/release/rafadeveloper92-lang/luminoriapro?include_prereleases" alt="Latest Release">
   </a>
-  <a href="https://github.com/shnulaa/FlutterIPTV/actions/workflows/build-release.yml">
-    <img src="https://github.com/shnulaa/FlutterIPTV/actions/workflows/build-release.yml/badge.svg?branch=main" alt="Build Status">
+  <a href="https://github.com/rafadeveloper92-lang/luminoriapro/actions/workflows/build-release.yml">
+    <img src="https://github.com/rafadeveloper92-lang/luminoriapro/actions/workflows/build-release.yml/badge.svg?branch=main" alt="Build Status">
   </a>
-  <a href="https://github.com/shnulaa/FlutterIPTV/releases">
-    <img src="https://img.shields.io/github/downloads/shnulaa/FlutterIPTV/total" alt="Downloads">
+  <a href="https://github.com/rafadeveloper92-lang/luminoriapro/releases">
+    <img src="https://img.shields.io/github/downloads/rafadeveloper92-lang/luminoriapro/total" alt="Downloads">
   </a>
 </p>
 
@@ -75,7 +75,7 @@ https://iptv-org.github.io/iptv/index.m3u
 
 ## 🚀 Download
 
-Download the latest version from [Releases Page](https://github.com/shnulaa/FlutterIPTV/releases/latest).
+Download the latest version from [Releases Page](https://github.com/rafadeveloper92-lang/luminoriapro/releases/latest).
 
 ### Available Platforms
 - **Windows**: x64 Installer (.exe)
@@ -198,8 +198,8 @@ Download the latest version from [Releases Page](https://github.com/shnulaa/Flut
 
 ### Build
 ```bash
-git clone https://github.com/shnulaa/FlutterIPTV.git
-cd FlutterIPTV
+git clone https://github.com/rafadeveloper92-lang/luminoriapro.git
+cd luminoriapro
 flutter pub get
 
 # Run

@@ -9,14 +9,14 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/shnulaa/FlutterIPTV/releases">
-    <img src="https://img.shields.io/github/v/release/shnulaa/FlutterIPTV?include_prereleases" alt="最新版本">
+  <a href="https://github.com/rafadeveloper92-lang/luminoriapro/releases">
+    <img src="https://img.shields.io/github/v/release/rafadeveloper92-lang/luminoriapro?include_prereleases" alt="最新版本">
   </a>
-  <a href="https://github.com/shnulaa/FlutterIPTV/actions/workflows/build-release.yml">
-    <img src="https://github.com/shnulaa/FlutterIPTV/actions/workflows/build-release.yml/badge.svg" alt="构建状态">
+  <a href="https://github.com/rafadeveloper92-lang/luminoriapro/actions/workflows/build-release.yml">
+    <img src="https://github.com/rafadeveloper92-lang/luminoriapro/actions/workflows/build-release.yml/badge.svg" alt="构建状态">
   </a>
-  <a href="https://github.com/shnulaa/FlutterIPTV/releases">
-    <img src="https://img.shields.io/github/downloads/shnulaa/FlutterIPTV/total" alt="下载量">
+  <a href="https://github.com/rafadeveloper92-lang/luminoriapro/releases">
+    <img src="https://img.shields.io/github/downloads/rafadeveloper92-lang/luminoriapro/total" alt="下载量">
   </a>
 </p>
 

@@ -54,7 +54,9 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = true
+            // Minificação desativada: R8 falha com "Missing class" do Stripe pushProvisioning.
+            // Reative (true) e use proguard-rules.pro quando o Stripe/AGP corrigir.
+            isMinifyEnabled = false
             isShrinkResources = false
             signingConfig = if (keystorePropertiesFile.exists()) {
                 signingConfigs.getByName("release")

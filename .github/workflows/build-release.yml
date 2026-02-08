@@ -26,6 +26,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       
+      - name: Create .env for build
+        run: |
+          if (Test-Path .env.example) { Copy-Item .env.example .env } else { Set-Content -Path .env -Value "# placeholder" }
+      
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -105,6 +109,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       
+      - name: Create .env for build
+        run: cp -n .env.example .env 2>/dev/null || true; test -f .env || echo '# placeholder' > .env
+      
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
@@ -166,6 +173,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+      
+      - name: Create .env for build
+        run: cp -n .env.example .env 2>/dev/null || true; test -f .env || echo '# placeholder' > .env
       
       - name: Setup Flutter
         uses: subosito/flutter-action@v2

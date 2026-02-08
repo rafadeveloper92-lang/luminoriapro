@@ -3,13 +3,13 @@ name: Build and Release
 on:
   push:
     tags:
-      - 'v*.*.*'  # 仅在推送tag时触发
+      - 'v*.*.*'  # Gatilho ao enviar uma tag (ex: v1.4.32)
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version number (e.g., 1.0.0)'
+        description: 'Version number (e.g., 1.4.32)'
         required: true
-        default: '1.0.0'
+        default: '1.4.32'
 
 env:
   FLUTTER_VERSION: '3.38.5'
@@ -26,7 +26,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       
-      # Imediatamente após checkout: .env e pasta badges ANTES de qualquer Flutter (PowerShell no Windows)
       - name: Prepare build environment
         shell: pwsh
         env:
@@ -40,11 +39,7 @@ jobs:
           }
           $badges = 'assets/images/badges'
           New-Item -ItemType Directory -Path $badges -Force | Out-Null
-          if (-not (Test-Path "$badges/placeholder.png") -and (Test-Path 'assets/icons/app_icon.png')) {
-            Copy-Item 'assets/icons/app_icon.png' "$badges/placeholder.png"
-          }
           if (-not (Test-Path "$badges/.gitkeep")) { Set-Content -Path "$badges/.gitkeep" -Value '' }
-          Get-ChildItem $badges
           Test-Path .env
       
       - name: Setup Flutter
@@ -62,20 +57,12 @@ jobs:
       
       - name: Download SQLite3 DLL
         run: |
-          $urls = @(
-            "https://www.sqlite.org/2025/sqlite-dll-win-x64-3510100.zip",
-            "https://www.sqlite.org/2024/sqlite-dll-win-x64-3470200.zip"
-          )
-          foreach ($url in $urls) {
-            try {
-              Invoke-WebRequest -Uri $url -OutFile "sqlite3.zip" -TimeoutSec 30
-              Expand-Archive -Path "sqlite3.zip" -DestinationPath "sqlite3_temp" -Force
-              if (Test-Path "sqlite3_temp/sqlite3.dll") {
-                Copy-Item "sqlite3_temp/sqlite3.dll" "build/windows/x64/runner/Release/" -Force
-                break
-              }
-            } catch { continue }
-          }
+          $url = "https://www.sqlite.org/2025/sqlite-dll-win-x64-3510100.zip"
+          try {
+            Invoke-WebRequest -Uri $url -OutFile "sqlite3.zip" -TimeoutSec 30
+            Expand-Archive -Path "sqlite3.zip" -DestinationPath "sqlite3_temp" -Force
+            Copy-Item "sqlite3_temp/sqlite3.dll" "build/windows/x64/runner/Release/" -Force
+          } catch { Write-Host "SQLite DLL download failed" }
         shell: pwsh
       
       - name: Create Installer
@@ -94,16 +81,10 @@ jobs:
           Compression=lzma2
           SolidCompression=yes
           ArchitecturesInstallIn64BitMode=x64
-          PrivilegesRequired=lowest
           [Files]
           Source: "build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
           [Icons]
           Name: "{group}\FlutterIPTV"; Filename: "{app}\flutter_iptv.exe"
-          Name: "{autodesktop}\FlutterIPTV"; Filename: "{app}\flutter_iptv.exe"; Tasks: desktopicon
-          [Tasks]
-          Name: "desktopicon"; Description: "Create desktop shortcut"; GroupDescription: "Additional icons:"
-          [Run]
-          Filename: "{app}\flutter_iptv.exe"; Description: "Launch FlutterIPTV"; Flags: nowait postinstall skipifsilent
           "@ | Out-File "installer.iss" -Encoding UTF8
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
         shell: pwsh
@@ -113,34 +94,23 @@ jobs:
         with:
           name: windows-release
           path: flutteriptv-Windows-x64-Setup.exe
-          retention-days: 5
 
   # ============================================
-  # Build All Android APKs (Mobile + TV)
+  # Build Android APKs
   # ============================================
   build-android:
     name: Build Android
     runs-on: ubuntu-latest
-    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
       
-      # Imediatamente após checkout: .env e pasta badges ANTES de qualquer Flutter
       - name: Prepare build environment
         env:
           ENV_FILE_CONTENT: ${{ secrets.ENV_FILE_CONTENT }}
         run: |
-          if [ -n "$ENV_FILE_CONTENT" ]; then
-            echo "$ENV_FILE_CONTENT" > .env
-          fi
-          if [ ! -f .env ]; then
-            [ -f .env.example ] && cp .env.example .env || echo '# placeholder' > .env
-          fi
+          [ -n "$ENV_FILE_CONTENT" ] && echo "$ENV_FILE_CONTENT" > .env || echo "# placeholder" > .env
           mkdir -p assets/images/badges
-          if [ ! -f assets/images/badges/placeholder.png ] && [ -f assets/icons/app_icon.png ]; then
-            cp assets/icons/app_icon.png assets/images/badges/placeholder.png
-          fi
           touch assets/images/badges/.gitkeep
       
       - name: Setup Java
@@ -155,72 +125,38 @@ jobs:
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
-          cache: true
-      
-      - name: Setup Android Signing
-        if: ${{ secrets.KEYSTORE_BASE64 != '' }}
-        run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/release-key.jks
-          cat > android/key.properties << EOF
-          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
-          keyPassword=${{ secrets.KEY_PASSWORD }}
-          keyAlias=${{ secrets.KEY_ALIAS }}
-          storeFile=release-key.jks
-          EOF
       
       - name: Get dependencies
         run: flutter pub get
       
-      - name: Build Mobile APKs
+      - name: Build APKs
         run: |
-          flutter clean
           flutter build apk --release --split-per-abi
           mkdir -p dist
-          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk dist/flutteriptv-Android-Mobile-arm64-v8a.apk
-          cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk dist/flutteriptv-Android-Mobile-armeabi-v7a.apk
-          cp build/app/outputs/flutter-apk/app-x86_64-release.apk dist/flutteriptv-Android-Mobile-x86_64.apk
-      
-      - name: Build TV APKs
-        run: |
-          flutter clean
-          flutter build apk --release --dart-define=IS_TV=true --split-per-abi
-          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk dist/flutteriptv-AndroidTV-arm64-v8a.apk
-          cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk dist/flutteriptv-AndroidTV-armeabi-v7a.apk
-          cp build/app/outputs/flutter-apk/app-x86_64-release.apk dist/flutteriptv-AndroidTV-x86_64.apk
+          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk dist/flutteriptv-Android-arm64.apk
       
       - name: Upload Android Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: android-release
           path: dist/
-          retention-days: 5
 
   # ============================================
-  # Build iOS Application
+  # Build iOS (Unsigned)
   # ============================================
   build-ios:
     name: Build iOS
     runs-on: macos-latest
-    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
       
-      # Imediatamente após checkout: .env e pasta badges ANTES de qualquer Flutter
       - name: Prepare build environment
         env:
           ENV_FILE_CONTENT: ${{ secrets.ENV_FILE_CONTENT }}
         run: |
-          if [ -n "$ENV_FILE_CONTENT" ]; then
-            echo "$ENV_FILE_CONTENT" > .env
-          fi
-          if [ ! -f .env ]; then
-            [ -f .env.example ] && cp .env.example .env || echo '# placeholder' > .env
-          fi
+          [ -n "$ENV_FILE_CONTENT" ] && echo "$ENV_FILE_CONTENT" > .env || echo "# placeholder" > .env
           mkdir -p assets/images/badges
-          if [ ! -f assets/images/badges/placeholder.png ] && [ -f assets/icons/app_icon.png ]; then
-            cp assets/icons/app_icon.png assets/images/badges/placeholder.png
-          fi
           touch assets/images/badges/.gitkeep
       
       - name: Setup Flutter
@@ -228,7 +164,6 @@ jobs:
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
-          cache: true
       
       - name: Get dependencies
         run: flutter pub get
@@ -236,6 +171,7 @@ jobs:
       - name: Install CocoaPods
         run: |
           cd ios
+          pod repo update
           pod install
           cd ..
       
@@ -243,19 +179,16 @@ jobs:
         run: |
           flutter build ios --release --no-codesign
           mkdir -p dist
-          # Criar arquivo IPA não assinado para distribuição de teste
           cd build/ios/iphoneos
           mkdir -p Payload
           cp -r Runner.app Payload/
           zip -r ../../../dist/flutteriptv-iOS-unsigned.ipa Payload
-          cd ../../..
       
       - name: Upload iOS Artifact
         uses: actions/upload-artifact@v4
         with:
           name: ios-release
           path: dist/flutteriptv-iOS-unsigned.ipa
-          retention-days: 5
 
   # ============================================
   # Create GitHub Release
@@ -266,123 +199,21 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      
       - name: Download Artifacts
         uses: actions/download-artifact@v4
         with:
           path: ./release-assets/
       
-      - name: Get version
-        id: version
-        run: |
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
-            echo "TAG=v${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
-            echo "CREATE_RELEASE=true" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-            echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-            echo "CREATE_RELEASE=true" >> $GITHUB_OUTPUT
-          else
-            echo "VERSION=dev-build" >> $GITHUB_OUTPUT
-            echo "TAG=dev-build" >> $GITHUB_OUTPUT
-            echo "CREATE_RELEASE=false" >> $GITHUB_OUTPUT
-          fi
-      
-      - name: Generate Release Notes
-        run: |
-          VERSION="${{ steps.version.outputs.VERSION }}"
-          TAG="${{ steps.version.outputs.TAG }}"
-          BASE_URL="https://github.com/${{ github.repository }}/releases/download/${TAG}"
-          
-          # Read changelog from version.json
-          if [ -f "docs/version.json" ]; then
-            CHANGELOG_ZH=$(jq -r '.changelog.zh' docs/version.json | sed 's/\\n/\n/g')
-            CHANGELOG_EN=$(jq -r '.changelog.en' docs/version.json | sed 's/\\n/\n/g')
-          else
-            # Fallback to git commits if version.json not found
-            PREV_TAG=$(git tag -l 'v*' --sort=-v:refname | grep -v "^${TAG}$" | head -1)
-            if [ -n "$PREV_TAG" ]; then
-              CHANGELOG_ZH=$(git log --pretty=format:"- %s" ${PREV_TAG}..${TAG} 2>/dev/null | grep -v "^- Merge" || echo "- Bug fixes and improvements")
-              CHANGELOG_EN="${CHANGELOG_ZH}"
-            else
-              CHANGELOG_ZH="- 初始版本"
-              CHANGELOG_EN="- Initial release"
-            fi
-          fi
-          
-          cat > release_notes.md << EOF
-          ## 📺 FlutterIPTV ${VERSION}
-          
-          ### 📝 更新内容 What's New
-          
-          **中文 Chinese:**
-          ${CHANGELOG_ZH}
-          
-          **English:**
-          ${CHANGELOG_EN}
-          
-          ---
-          
-          ### 📥 下载 Downloads
-          
-          #### 🖥️ Windows
-          | 文件 | 说明 |
-          |------|------|
-          | [flutteriptv-Windows-x64-Setup.exe](${BASE_URL}/flutteriptv-Windows-x64-Setup.exe) | Windows 64位安装包 |
-          
-          #### 📱 Android 手机版
-          | 文件 | 说明 |
-          |------|------|
-          | [flutteriptv-Android-Mobile-arm64-v8a.apk](${BASE_URL}/flutteriptv-Android-Mobile-arm64-v8a.apk) | 64位 ARM 设备（推荐） |
-          | [flutteriptv-Android-Mobile-armeabi-v7a.apk](${BASE_URL}/flutteriptv-Android-Mobile-armeabi-v7a.apk) | 32位 ARM 设备 |
-          | [flutteriptv-Android-Mobile-x86_64.apk](${BASE_URL}/flutteriptv-Android-Mobile-x86_64.apk) | x86_64 模拟器 |
-          
-          #### 📺 Android TV 电视版
-          | 文件 | 说明 |
-          |------|------|
-          | [flutteriptv-AndroidTV-arm64-v8a.apk](${BASE_URL}/flutteriptv-AndroidTV-arm64-v8a.apk) | 64位 ARM 电视（推荐） |
-          | [flutteriptv-AndroidTV-armeabi-v7a.apk](${BASE_URL}/flutteriptv-AndroidTV-armeabi-v7a.apk) | 32位 ARM 电视 |
-          | [flutteriptv-AndroidTV-x86_64.apk](${BASE_URL}/flutteriptv-AndroidTV-x86_64.apk) | x86_64 电视模拟器 |
-          
-          #### 🍎 iOS
-          | 文件 | 说明 |
-          |------|------|
-          | [flutteriptv-iOS-unsigned.ipa](${BASE_URL}/flutteriptv-iOS-unsigned.ipa) | iOS 未签名版本（需要自签名） |
-          
-          > ⚠️ **iOS 注意事项**: IPA 文件未签名，需要使用工具如 AltStore、Sideloadly 或 Xcode 进行签名和安装。
-          EOF
-      
       - name: Create Release
-        if: steps.version.outputs.CREATE_RELEASE == 'true'
         uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
         with:
-          tag_name: ${{ steps.version.outputs.TAG }}
-          name: flutteriptv ${{ steps.version.outputs.VERSION }}
-          body_path: release_notes.md
-          draft: false
-          prerelease: false
+          tag_name: ${{ github.event.inputs.version || github.ref_name }}
+          name: Release ${{ github.event.inputs.version || github.ref_name }}
           files: |
-            release-assets/windows-release/flutteriptv-Windows-x64-Setup.exe
-            release-assets/android-release/flutteriptv-Android-Mobile-arm64-v8a.apk
-            release-assets/android-release/flutteriptv-Android-Mobile-armeabi-v7a.apk
-            release-assets/android-release/flutteriptv-Android-Mobile-x86_64.apk
-            release-assets/android-release/flutteriptv-AndroidTV-arm64-v8a.apk
-            release-assets/android-release/flutteriptv-AndroidTV-armeabi-v7a.apk
-            release-assets/android-release/flutteriptv-AndroidTV-x86_64.apk
-            release-assets/ios-release/flutteriptv-iOS-unsigned.ipa
+            release-assets/windows-release/*.exe
+            release-assets/android-release/*.apk
+            release-assets/ios-release/*.ipa
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build Complete (No Release)
-        if: steps.version.outputs.CREATE_RELEASE == 'false'
-        run: |
-          echo "✅ Build completed successfully!"
-          echo "📦 Artifacts created but no release published (branch push)"
-          echo "🏷️ To create a release, push a tag (v1.0.0) or use workflow_dispatch"

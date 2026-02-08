@@ -29,6 +29,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       
+      - name: Prepare build environment
+        shell: pwsh
+        env:
+          ENV_FILE_CONTENT: ${{ secrets.ENV_FILE_CONTENT }}
+        run: |
+          if ($env:ENV_FILE_CONTENT) { Set-Content -Path .env -Value $env:ENV_FILE_CONTENT }
+          if (-not (Test-Path .env)) { Set-Content -Path .env -Value '# placeholder' }
+          New-Item -ItemType Directory -Path assets/images/badges -Force | Out-Null
+          if (-not (Test-Path assets/images/badges/placeholder.png)) {
+            [System.Convert]::FromBase64String('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==') | Set-Content -Path assets/images/badges/placeholder.png -Encoding Byte
+          }
+      
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -59,6 +71,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       
+      - name: Prepare build environment
+        env:
+          ENV_FILE_CONTENT: ${{ secrets.ENV_FILE_CONTENT }}
+        run: |
+          if [ -n "$ENV_FILE_CONTENT" ]; then printf '%s\n' "$ENV_FILE_CONTENT" > .env; else echo '# placeholder' > .env; fi
+          mkdir -p assets/images/badges
+          touch assets/images/badges/.gitkeep
+          if [ ! -f assets/images/badges/placeholder.png ]; then
+            echo 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==' | base64 -d > assets/images/badges/placeholder.png
+          fi
+      
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
@@ -76,6 +99,11 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
       
+      - name: Desativar minificação Android (R8 Stripe)
+        run: |
+          sed -i 's/isMinifyEnabled = true/isMinifyEnabled = false/g' android/app/build.gradle.kts
+          sed -i 's/minifyEnabled true/minifyEnabled false/g' android/app/build.gradle.kts
+      
       - name: Analyze code
         run: flutter analyze
       
@@ -92,6 +120,17 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      
+      - name: Prepare build environment
+        env:
+          ENV_FILE_CONTENT: ${{ secrets.ENV_FILE_CONTENT }}
+        run: |
+          if [ -n "$ENV_FILE_CONTENT" ]; then printf '%s\n' "$ENV_FILE_CONTENT" > .env; else echo '# placeholder' > .env; fi
+          mkdir -p assets/images/badges
+          touch assets/images/badges/.gitkeep
+          if [ ! -f assets/images/badges/placeholder.png ]; then
+            echo 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==' | base64 -d > assets/images/badges/placeholder.png
+          fi
       
       - name: Setup Flutter
         uses: subosito/flutter-action@v2

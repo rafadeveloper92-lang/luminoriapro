@@ -117,6 +117,10 @@ jobs:
           fi
           mkdir -p assets/images/badges
           touch assets/images/badges/.gitkeep
+          # Garantir pelo menos um arquivo em badges (evita "unable to find directory entry")
+          if [ ! -f assets/images/badges/placeholder.png ]; then
+            echo 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==' | base64 -d > assets/images/badges/placeholder.png
+          fi
           test -f .env && echo ".env criado ($(wc -l < .env) linhas)"
       
       - name: Setup Java
@@ -134,6 +138,13 @@ jobs:
       
       - name: Get dependencies
         run: flutter pub get
+      
+      - name: Desativar minificação Android (evitar R8 Stripe missing class)
+        run: |
+          # Força isMinifyEnabled = false no release para o build passar no CI
+          sed -i 's/isMinifyEnabled = true/isMinifyEnabled = false/g' android/app/build.gradle.kts
+          sed -i 's/minifyEnabled true/minifyEnabled false/g' android/app/build.gradle.kts
+          grep -E "minify|Minify" android/app/build.gradle.kts || true
       
       - name: Build APKs
         run: |

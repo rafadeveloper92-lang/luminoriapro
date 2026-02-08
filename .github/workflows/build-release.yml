@@ -26,23 +26,26 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       
-      # Imediatamente após checkout: .env e pasta badges ANTES de qualquer Flutter
+      # Imediatamente após checkout: .env e pasta badges ANTES de qualquer Flutter (PowerShell no Windows)
       - name: Prepare build environment
-        shell: bash
+        shell: pwsh
         env:
           ENV_FILE_CONTENT: ${{ secrets.ENV_FILE_CONTENT }}
         run: |
-          if [ -n "$ENV_FILE_CONTENT" ]; then
-            echo "$ENV_FILE_CONTENT" > .env
-          fi
-          if [ ! -f .env ]; then
-            [ -f .env.example ] && cp .env.example .env || echo '# placeholder' > .env
-          fi
-          mkdir -p assets/images/badges
-          if [ ! -f assets/images/badges/placeholder.png ] && [ -f assets/icons/app_icon.png ]; then
-            cp assets/icons/app_icon.png assets/images/badges/placeholder.png
-          fi
-          touch assets/images/badges/.gitkeep
+          if ($env:ENV_FILE_CONTENT) {
+            Set-Content -Path .env -Value $env:ENV_FILE_CONTENT
+          }
+          if (-not (Test-Path .env)) {
+            if (Test-Path .env.example) { Copy-Item .env.example .env } else { Set-Content -Path .env -Value '# placeholder' }
+          }
+          $badges = 'assets/images/badges'
+          New-Item -ItemType Directory -Path $badges -Force | Out-Null
+          if (-not (Test-Path "$badges/placeholder.png") -and (Test-Path 'assets/icons/app_icon.png')) {
+            Copy-Item 'assets/icons/app_icon.png' "$badges/placeholder.png"
+          }
+          if (-not (Test-Path "$badges/.gitkeep")) { Set-Content -Path "$badges/.gitkeep" -Value '' }
+          Get-ChildItem $badges
+          Test-Path .env
       
       - name: Setup Flutter
         uses: subosito/flutter-action@v2

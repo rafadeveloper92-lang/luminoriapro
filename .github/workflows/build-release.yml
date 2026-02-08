@@ -109,9 +109,15 @@ jobs:
         env:
           ENV_FILE_CONTENT: ${{ secrets.ENV_FILE_CONTENT }}
         run: |
-          [ -n "$ENV_FILE_CONTENT" ] && echo "$ENV_FILE_CONTENT" > .env || echo "# placeholder" > .env
+          # .env é obrigatório como asset no pubspec — criar sempre (placeholder ou conteúdo do secret)
+          if [ -n "$ENV_FILE_CONTENT" ]; then
+            printf '%s\n' "$ENV_FILE_CONTENT" > .env
+          else
+            echo '# placeholder - configure ENV_FILE_CONTENT no GitHub Secrets' > .env
+          fi
           mkdir -p assets/images/badges
           touch assets/images/badges/.gitkeep
+          test -f .env && echo ".env criado ($(wc -l < .env) linhas)"
       
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -155,9 +161,14 @@ jobs:
         env:
           ENV_FILE_CONTENT: ${{ secrets.ENV_FILE_CONTENT }}
         run: |
-          [ -n "$ENV_FILE_CONTENT" ] && echo "$ENV_FILE_CONTENT" > .env || echo "# placeholder" > .env
+          if [ -n "$ENV_FILE_CONTENT" ]; then
+            printf '%s\n' "$ENV_FILE_CONTENT" > .env
+          else
+            echo '# placeholder' > .env
+          fi
           mkdir -p assets/images/badges
           touch assets/images/badges/.gitkeep
+          test -f .env && echo ".env criado"
       
       - name: Setup Flutter
         uses: subosito/flutter-action@v2

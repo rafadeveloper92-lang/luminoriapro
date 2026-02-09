@@ -68,7 +68,7 @@ class SettingsProvider extends ChangeNotifier {
   bool _showNetworkSpeed = true; // 默认显示网速
   bool _showVideoInfo = true; // 默认显示分辨率码率
   String _progressBarMode = 'auto'; // 进度条显示模式：auto, always, never
-  bool _enableMultiScreen = true; // 默认开启分屏
+  bool _enableMultiScreen = false; // 默认单屏播放，用户可在设置中开启分屏
   int _defaultScreenPosition = 1; // 默认播放位置（左上角）
   int _activeScreenIndex = 0; // 当前活动窗口索引
   String _lastPlayMode = 'single'; // 上次播放模式：'single' 或 'multi'
@@ -164,7 +164,7 @@ class SettingsProvider extends ChangeNotifier {
     _showNetworkSpeed = prefs.getBool(_keyShowNetworkSpeed) ?? true;
     _showVideoInfo = prefs.getBool(_keyShowVideoInfo) ?? true;
     _progressBarMode = prefs.getString(_keyProgressBarMode) ?? 'auto';
-    _enableMultiScreen = prefs.getBool(_keyEnableMultiScreen) ?? true;
+    _enableMultiScreen = prefs.getBool(_keyEnableMultiScreen) ?? false;
     _defaultScreenPosition = prefs.getInt(_keyDefaultScreenPosition) ?? 1;
     _activeScreenIndex = prefs.getInt(_keyActiveScreenIndex) ?? 0;
     _lastPlayMode = prefs.getString(_keyLastPlayMode) ?? 'single';
@@ -607,7 +607,7 @@ class SettingsProvider extends ChangeNotifier {
     _showNetworkSpeed = true;
     _showVideoInfo = true;
     _progressBarMode = 'auto';
-    _enableMultiScreen = true;
+    _enableMultiScreen = false;
     _defaultScreenPosition = 1;
     _activeScreenIndex = 0;
     _darkColorScheme = 'ocean';

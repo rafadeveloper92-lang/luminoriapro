@@ -16,10 +16,11 @@ class StreamUrlUtils {
     return url;
   }
 
-  /// Headers HTTP para abrir streams; muitos servidores bloqueiam sem User-Agent.
+  /// Headers HTTP para abrir streams; muitos servidores bloqueiam sem User-Agent/Referer.
   static Map<String, String> get httpHeadersForStream => {
         'User-Agent':
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Referer': 'https://smartplay.pro/',
       };
 
   /// Indica se a URL é http(s) e deve receber headers de rede.

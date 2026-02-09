@@ -2274,7 +2274,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   },
                   activeColor: AppTheme.getPrimaryColor(dialogContext),
                 );
-              }).toList(),
+              }),
             ],
           ),
         );

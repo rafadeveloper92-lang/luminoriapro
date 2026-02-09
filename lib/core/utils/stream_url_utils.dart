@@ -15,4 +15,17 @@ class StreamUrlUtils {
     } catch (_) {}
     return url;
   }
+
+  /// Headers HTTP para abrir streams; muitos servidores bloqueiam sem User-Agent.
+  static Map<String, String> get httpHeadersForStream => {
+        'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      };
+
+  /// Indica se a URL é http(s) e deve receber headers de rede.
+  static bool isNetworkUrl(String url) {
+    if (url.isEmpty) return false;
+    final lower = url.toLowerCase();
+    return lower.startsWith('http://') || lower.startsWith('https://');
+  }
 }

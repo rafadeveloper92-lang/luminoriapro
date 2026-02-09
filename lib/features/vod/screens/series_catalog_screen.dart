@@ -577,13 +577,13 @@ class _SeriesCatalogScreenState extends State<SeriesCatalogScreen> {
               bottom: -20,
               child: Text(
                 '$rank',
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 100,
                   fontWeight: FontWeight.w900,
                   color: Colors.black,
                   shadows: [
-                    const Shadow(color: Colors.white, offset: Offset(2, 2)),
-                    const Shadow(color: Colors.white, offset: Offset(-2, -2)),
+                    Shadow(color: Colors.white, offset: Offset(2, 2)),
+                    Shadow(color: Colors.white, offset: Offset(-2, -2)),
                   ],
                   // Tentar criar efeito de outline
                 ),

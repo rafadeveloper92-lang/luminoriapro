@@ -275,7 +275,10 @@ class PlayerProvider extends ChangeNotifier {
     
     try {
       if (!_useNativePlayer) {
-        await _mediaKitPlayer?.open(Media(url));
+        await _mediaKitPlayer?.open(Media(
+          url,
+          httpHeaders: _isNetworkUrl(url) ? StreamUrlUtils.httpHeadersForStream : null,
+        ));
         _state = PlayerState.playing;
       }
       // 注意：不在这里重置 _retryCount，因为播放器可能还会异步报错
@@ -527,6 +530,8 @@ class PlayerProvider extends ChangeNotifier {
 
   static String _normalizeStreamUrl(String url) => StreamUrlUtils.normalize(url);
 
+  static bool _isNetworkUrl(String url) => StreamUrlUtils.isNetworkUrl(url);
+
   // ============ Public API ============
 
   Future<void> playChannel(Channel channel) async {
@@ -577,7 +582,10 @@ class PlayerProvider extends ChangeNotifier {
       // Android TV 使用原生播放器，通过 MethodChannel 处理
       // 其他平台使用 media_kit
       if (!_useNativePlayer) {
-        await _mediaKitPlayer?.open(Media(playUrl));
+        await _mediaKitPlayer?.open(Media(
+          playUrl,
+          httpHeaders: _isNetworkUrl(playUrl) ? StreamUrlUtils.httpHeadersForStream : null,
+        ));
         _state = PlayerState.playing;
         notifyListeners();
       }
@@ -661,7 +669,10 @@ class PlayerProvider extends ChangeNotifier {
 
     try {
       final normalized = _normalizeStreamUrl(url);
-      await _mediaKitPlayer?.open(Media(normalized));
+      await _mediaKitPlayer?.open(Media(
+        normalized,
+        httpHeaders: _isNetworkUrl(normalized) ? StreamUrlUtils.httpHeadersForStream : null,
+      ));
       // Forçar início da reprodução (VOD pode ficar em tela preta no Windows sem play explícito)
       _mediaKitPlayer?.play();
       _state = PlayerState.playing;
@@ -907,7 +918,10 @@ class PlayerProvider extends ChangeNotifier {
 
     try {
       if (!_useNativePlayer) {
-        await _mediaKitPlayer?.open(Media(url));
+        await _mediaKitPlayer?.open(Media(
+          url,
+          httpHeaders: _isNetworkUrl(url) ? StreamUrlUtils.httpHeadersForStream : null,
+        ));
         _state = PlayerState.playing;
       }
       ServiceLocator.log.i('播放成功', tag: 'PlayerProvider');

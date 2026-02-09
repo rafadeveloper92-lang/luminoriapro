@@ -70,7 +70,10 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
   void _loadAndPlay() {
     try {
       final url = StreamUrlUtils.normalize(widget.channel.currentUrl);
-      _player.open(Media(url));
+      _player.open(Media(
+        url,
+        httpHeaders: StreamUrlUtils.isNetworkUrl(url) ? StreamUrlUtils.httpHeadersForStream : null,
+      ));
     } catch (e) {
       ServiceLocator.log.d('Error loading channel: $e');
     }

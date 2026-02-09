@@ -201,7 +201,10 @@ class MultiScreenProvider extends ChangeNotifier {
       // 播放频道（使用 currentUrl 保留源索引， normaliza URL)
       final url = StreamUrlUtils.normalize(playUrl);
       ServiceLocator.log.d('MultiScreenProvider: Opening media for screen $screenIndex: $url');
-      await screen.player!.open(Media(url));
+      await screen.player!.open(Media(
+        url,
+        httpHeaders: StreamUrlUtils.isNetworkUrl(url) ? StreamUrlUtils.httpHeadersForStream : null,
+      ));
       
       // 播放开始后再次确保音量正确
       _applyVolumeToScreen(screenIndex);

@@ -59,7 +59,8 @@ class ProfileProvider extends ChangeNotifier {
   String? get countryCode => _profile?.countryCode;
   String? get city => _profile?.city;
 
-  /// Reporta tempo assistido: adiciona XP (1 por minuto) e horas ao perfil no Supabase.
+  /// Reporta tempo assistido: adiciona XP (1 por minuto) e horas ao perfil no Supabase;
+  /// também soma minutos no mês atual para o ranking global.
   Future<void> reportWatchSession(Duration watched) async {
     final userId = currentUserId;
     if (userId == null || !LicenseConfig.isConfigured) return;
@@ -78,6 +79,7 @@ class ProfileProvider extends ChangeNotifier {
       _profile = saved;
       notifyListeners();
     }
+    await _service.addMonthlyWatchMinutes(minutes);
   }
 
   /// Salva perfil completo (nome, bio, gêneros, estado civil, país, cidade).

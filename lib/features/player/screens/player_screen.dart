@@ -51,6 +51,10 @@ class PlayerScreen extends StatefulWidget {
 
 class _PlayerScreenState extends State<PlayerScreen>
     with WidgetsBindingObserver {
+  /// TEMPORÁRIO: true = sempre abrir player único (filme não reproduz no multi-tela).
+  /// Coloque false quando quiser reativar o multi-tela.
+  static const bool _forceSinglePlayerForTesting = true;
+
   Timer? _hideControlsTimer;
   Timer? _dlnaSyncTimer; // DLNA 状态同步定时器（Android TV 原生播放器用）
   Timer? _wakelockTimer; // 定期刷新wakelock（手机端用）
@@ -160,7 +164,9 @@ class _PlayerScreenState extends State<PlayerScreen>
       // 初始化本地分屏模式状态（根据设置或传入参数）
       // 如果传入的 isMultiScreen=true，强制进入分屏模式
       // DLNA 投屏模式下不进入分屏
-      _localMultiScreenMode = !isDlnaMode &&
+      // _forceSinglePlayerForTesting: desativa multi-tela para teste (filme abre no player único)
+      _localMultiScreenMode = !_forceSinglePlayerForTesting &&
+          !isDlnaMode &&
           (widget.isMultiScreen || _settingsProvider!.enableMultiScreen) &&
           PlatformDetector.isDesktop;
 
@@ -1533,9 +1539,15 @@ class _PlayerScreenState extends State<PlayerScreen>
           );
         }
 
-        return Video(
-          controller: provider.videoController!,
-          controls: NoVideoControls,
+        // fill: Colors.black e Positioned.fill como no multi-tela (no Windows canal deixa de ficar tela preta).
+        final ctrl = provider.videoController!;
+        return Positioned.fill(
+          child: Video(
+            key: ObjectKey(ctrl),
+            controller: ctrl,
+            fill: Colors.black,
+            controls: NoVideoControls,
+          ),
         );
       },
     );

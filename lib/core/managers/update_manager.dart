@@ -93,8 +93,13 @@ class UpdateManager {
     }
   }
 
-  /// 显示更新对话框
-  void _showUpdateDialog(BuildContext context, AppUpdate update) {
+  /// Mostra o diálogo de atualização (público para uso na splash ou em outros pontos).
+  /// [onDismiss] é chamado quando o utilizador escolhe "Depois" e o diálogo fecha.
+  void showUpdateDialog(
+    BuildContext context,
+    AppUpdate update, {
+    void Function()? onDismiss,
+  }) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -104,9 +109,14 @@ class UpdateManager {
         onCancel: () {
           Navigator.of(context).pop();
           ServiceLocator.log.d('UPDATE_MANAGER: 用户选择稍后更新');
+          onDismiss?.call();
         },
       ),
     );
+  }
+
+  void _showUpdateDialog(BuildContext context, AppUpdate update) {
+    showUpdateDialog(context, update);
   }
 
   /// 处理更新操作

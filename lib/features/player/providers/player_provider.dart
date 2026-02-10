@@ -44,12 +44,17 @@ class PlayerProvider extends ChangeNotifier {
   int _retryCount = 0;
   static const int _maxRetries = 2;  // 改为重试2次
   Timer? _retryTimer;
+  Timer? _playUrlTimeout; // Timeout quando VOD não inicia (ex.: Windows sem headers)
   bool _isAutoSwitching = false; // 标记是否正在自动切换源
   bool _isAutoDetecting = false; // 标记是否正在自动检测源
 
   /// Última URL/nome de VOD (filme/série) para re-tentar com software decoding em caso de erro de hardware
   String? _lastVodUrl;
   String? _lastVodName;
+
+  /// No Windows, throttle notifyListeners para evitar saturar o main thread e "Failed to post message to main thread"
+  static const Duration _windowsNotifyThrottle = Duration(milliseconds: 250);
+  DateTime? _lastNotifyTime;
 
   // On Android TV, we use native player via Activity, so don't init any Flutter player
   // On Android phone/tablet and other platforms, use media_kit
@@ -143,6 +148,13 @@ class PlayerProvider extends ChangeNotifier {
         error.contains('audio decoder') ||
         error.contains('Audio decoding')) {
       ServiceLocator.log.d('PlayerProvider: 忽略音频解码警告（可能只是部分帧解码失败）');
+      return;
+    }
+
+    // 忽略 falha de GPU no Windows (vídeo já roda em software; não mostrar erro em vermelho)
+    if (error.contains('AVHWDeviceContext') || error.contains('nvcuda') ||
+        error.contains('dxva2_vld') || error.contains('hwaccel initialisation')) {
+      ServiceLocator.log.d('PlayerProvider: 忽略 GPU 初始化警告（已使用软件解码）');
       return;
     }
     
@@ -336,7 +348,11 @@ class PlayerProvider extends ChangeNotifier {
       return;
     }
 
-    // 其他平台（包括 Android 手机）都使用 media_kit
+    // No Windows: iniciar já em software para evitar DXVA2/CUDA falhando e múltiplas
+    // recriações do player (que deixam tela preta com áudio).
+    if (Platform.isWindows) {
+      useSoftwareDecoding = true;
+    }
     _initMediaKitPlayer(useSoftwareDecoding: useSoftwareDecoding);
   }
   
@@ -349,7 +365,7 @@ class PlayerProvider extends ChangeNotifier {
     
     if (_mediaKitPlayer == null) {
       ServiceLocator.log.d('PlayerProvider: 预热播放器 - 初始化 media_kit', tag: 'PlayerProvider');
-      _initMediaKitPlayer();
+      _initMediaKitPlayer(useSoftwareDecoding: Platform.isWindows);
     }
     
     // 可选: 预加载一个空的媒体源来初始化解码器
@@ -386,9 +402,11 @@ class PlayerProvider extends ChangeNotifier {
       ),
     );
 
+    // No Windows forçar software para evitar falha DXVA2/CUDA e recriação do player (tela preta).
+    final useSw = useSoftwareDecoding || Platform.isWindows;
     VideoControllerConfiguration config = VideoControllerConfiguration(
-      hwdec: Platform.isAndroid ? (useSoftwareDecoding ? 'no' : 'mediacodec') : null,
-      enableHardwareAcceleration: !useSoftwareDecoding,
+      hwdec: Platform.isAndroid ? (useSw ? 'no' : 'mediacodec') : null,
+      enableHardwareAcceleration: !useSw,
     );
 
     _videoController = VideoController(_mediaKitPlayer!, configuration: config);
@@ -399,6 +417,8 @@ class PlayerProvider extends ChangeNotifier {
   void _setupMediaKitListeners() {
     _mediaKitPlayer!.stream.playing.listen((playing) {
       if (playing) {
+        _playUrlTimeout?.cancel();
+        _playUrlTimeout = null;
         _state = PlayerState.playing;
         // 只有在播放稳定后才重置重试计数
         // 使用延迟确保播放真正开始，而不是短暂的状态变化
@@ -425,25 +445,28 @@ class PlayerProvider extends ChangeNotifier {
 
     _mediaKitPlayer!.stream.position.listen((pos) {
       _position = pos;
-      notifyListeners();
+      _notifyListenersThrottled();
     });
     _mediaKitPlayer!.stream.duration.listen((dur) {
       _duration = dur;
-      notifyListeners();
+      _notifyListenersThrottled();
     });
     _mediaKitPlayer!.stream.tracks.listen((tracks) {
       for (final track in tracks.video) {
         if (track.codec != null) _videoCodec = track.codec!;
         if (track.fps != null) _fps = track.fps!;
       }
-      notifyListeners();
+      _notifyListenersThrottled();
     });
     _mediaKitPlayer!.stream.volume.listen((vol) {
       _volume = vol / 100;
-      notifyListeners();
+      _notifyListenersThrottled();
     });
     _mediaKitPlayer!.stream.error.listen((err) {
       if (err.isNotEmpty) {
+        _playUrlTimeout?.cancel();
+        _playUrlTimeout = null;
+        ServiceLocator.log.e('PlayerProvider: stream error', tag: 'PlayerProvider', error: err);
         if (_shouldTrySoftwareFallback(err)) {
           _attemptSoftwareFallback();
         } else {
@@ -451,16 +474,32 @@ class PlayerProvider extends ChangeNotifier {
         }
       }
     });
-    _mediaKitPlayer!.stream.width.listen((_) => notifyListeners());
-    _mediaKitPlayer!.stream.height.listen((_) => notifyListeners());
+    _mediaKitPlayer!.stream.width.listen((_) => _notifyListenersThrottled());
+    _mediaKitPlayer!.stream.height.listen((_) => _notifyListenersThrottled());
+  }
+
+  /// No Windows reduz chamadas a notifyListeners para evitar saturar o main thread
+  /// (evita "Failed to post message to main thread" do task_runner_window).
+  void _notifyListenersThrottled() {
+    if (!Platform.isWindows) {
+      notifyListeners();
+      return;
+    }
+    final now = DateTime.now();
+    if (_lastNotifyTime == null ||
+        now.difference(_lastNotifyTime!).compareTo(_windowsNotifyThrottle) >= 0) {
+      _lastNotifyTime = now;
+      notifyListeners();
+    }
   }
 
   Timer? _debugInfoTimer;
   
   void _updateDebugInfo() {
     _debugInfoTimer?.cancel();
-    
-    _debugInfoTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+    // No Windows usar intervalo maior para reduzir carga no main thread
+    final interval = Platform.isWindows ? const Duration(seconds: 2) : const Duration(seconds: 1);
+    _debugInfoTimer = Timer.periodic(interval, (_) {
       if (_mediaKitPlayer == null) return;
       _hwdecMode = 'mediacodec';
       
@@ -498,18 +537,21 @@ class PlayerProvider extends ChangeNotifier {
       } else {
         _downloadSpeed = 0;
       }
-      
-      notifyListeners();
+
+      _notifyListenersThrottled();
     });
   }
 
   bool _shouldTrySoftwareFallback(String error) {
+    // No Windows não re-inicializar: libmpv já faz fallback para S/W e recriar o player
+    // deixa tela preta (só áudio) porque a UI fica com a textura do player antigo.
+    if (Platform.isWindows) return false;
     final lowerError = error.toLowerCase();
     final isHwError = lowerError.contains('codec') ||
         lowerError.contains('decoder') ||
         lowerError.contains('hwdec') ||
         lowerError.contains('mediacodec') ||
-        lowerError.contains('avhwdevicecontext'); // Failed to allocate AVHWDeviceContext (Windows/GPU)
+        lowerError.contains('avhwdevicecontext');
     return isHwError && _retryCount < _maxRetries;
   }
 
@@ -578,7 +620,14 @@ class PlayerProvider extends ChangeNotifier {
 
     try {
       final playerInitStartTime = DateTime.now();
-      
+
+      // No Windows: no player único o vídeo fica preto (só áudio); no multi-tela aparece.
+      // Recriar o player antes de abrir o canal dá um texture novo e o vídeo aparece.
+      if (!_useNativePlayer && Platform.isWindows) {
+        _initMediaKitPlayer(useSoftwareDecoding: true);
+        notifyListeners();
+      }
+
       // Android TV 使用原生播放器，通过 MethodChannel 处理
       // 其他平台使用 media_kit
       if (!_useNativePlayer) {
@@ -586,6 +635,8 @@ class PlayerProvider extends ChangeNotifier {
           playUrl,
           httpHeaders: _isNetworkUrl(playUrl) ? StreamUrlUtils.httpHeadersForStream : null,
         ));
+        // No Windows, play() explícito evita tela preta com só áudio em canais ao vivo
+        _mediaKitPlayer?.play();
         _state = PlayerState.playing;
         notifyListeners();
       }
@@ -669,14 +720,34 @@ class PlayerProvider extends ChangeNotifier {
 
     try {
       final normalized = _normalizeStreamUrl(url);
+      final useHeaders = _isNetworkUrl(normalized);
+      ServiceLocator.log.d(
+        'PlayerProvider: playUrl opening (headers=$useHeaders)',
+        tag: 'PlayerProvider',
+      );
       await _mediaKitPlayer?.open(Media(
         normalized,
-        httpHeaders: _isNetworkUrl(normalized) ? StreamUrlUtils.httpHeadersForStream : null,
+        httpHeaders: useHeaders ? StreamUrlUtils.httpHeadersForStream : null,
       ));
-      // Forçar início da reprodução (VOD pode ficar em tela preta no Windows sem play explícito)
       _mediaKitPlayer?.play();
-      _state = PlayerState.playing;
+      // Não assumir playing: aguardar stream.playing para evitar tela preta no Windows
+      // Timeout: se em 20s não iniciar e não houver erro, mostrar mensagem
+      _playUrlTimeout?.cancel();
+      _playUrlTimeout = Timer(const Duration(seconds: 20), () {
+        if (_currentChannel != null) return;
+        if (_state == PlayerState.playing || _error != null) return;
+        _playUrlTimeout = null;
+        ServiceLocator.log.w(
+          'PlayerProvider: VOD did not start within 20s',
+          tag: 'PlayerProvider',
+        );
+        _setError(
+          'O vídeo não iniciou. Verifique a conexão ou tente novamente.',
+        );
+      });
     } catch (e) {
+      _playUrlTimeout?.cancel();
+      _playUrlTimeout = null;
       _setError('Failed to play: $e');
       return;
     }
@@ -702,6 +773,8 @@ class PlayerProvider extends ChangeNotifier {
     // 清除错误状态和定时器
     _retryTimer?.cancel();
     _retryTimer = null;
+    _playUrlTimeout?.cancel();
+    _playUrlTimeout = null;
     _retryCount = 0;
     _error = null;
     _errorDisplayed = false;

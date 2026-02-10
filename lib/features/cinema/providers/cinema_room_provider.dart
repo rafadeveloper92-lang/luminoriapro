@@ -96,10 +96,17 @@ class CinemaRoomProvider extends ChangeNotifier {
       }
     }
 
-    _syncChannel = _service.subscribeToSync(r.id, (updated) {
-      _room = updated;
-      notifyListeners();
-    });
+    _syncChannel = _service.subscribeToSync(
+      r.id,
+      (updated) {
+        _room = updated;
+        notifyListeners();
+      },
+      onRoomDeleted: () {
+        _room = null;
+        notifyListeners();
+      },
+    );
 
     final roomCh = _service.getRoomChannel(r.id);
     if (roomCh != null) {

@@ -1,6 +1,9 @@
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/config/license_config.dart';
 import '../../../core/models/friend.dart';
+import '../../../core/services/admin_auth_service.dart';
 import '../../../core/services/friends_service.dart';
 import '../../../core/services/direct_message_service.dart';
 
@@ -20,6 +23,53 @@ class FriendsProvider extends ChangeNotifier {
   bool _isLoading = false;
   bool _isSearching = false;
   int _unreadMessagesCount = 0;
+
+  RealtimeChannel? _realtimeChannel;
+
+  void _onIncomingMessageForBadge(DirectMessage msg) {
+    _refreshUnreadCount();
+  }
+
+  Future<void> _refreshUnreadCount() async {
+    _unreadMessagesCount = await DirectMessageService.instance.getUnreadCount();
+    notifyListeners();
+  }
+
+  /// Inicia inscrições Realtime (solicitações de amizade e badge de mensagens). Chamar ao abrir o painel.
+  void startRealtimeSubscriptions() {
+    if (!LicenseConfig.isConfigured) return;
+    final userId = AdminAuthService.instance.currentUserId;
+    if (userId == null || userId.isEmpty) return;
+
+    try {
+      final client = Supabase.instance.client;
+      _realtimeChannel = client.channel('friend_requests_$userId');
+      _realtimeChannel!.onPostgresChanges(
+        event: PostgresChangeEvent.insert,
+        schema: 'public',
+        table: 'friend_requests',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'to_user_id',
+          value: userId,
+        ),
+        callback: (_) {
+          loadAll();
+        },
+      ).subscribe();
+    } catch (_) {}
+
+    DirectMessageService.instance.addIncomingMessageListener(_onIncomingMessageForBadge);
+  }
+
+  /// Para as inscrições Realtime. Chamar ao fechar o painel.
+  Future<void> stopRealtimeSubscriptions() async {
+    if (_realtimeChannel != null) {
+      await _realtimeChannel!.unsubscribe();
+      _realtimeChannel = null;
+    }
+    DirectMessageService.instance.removeIncomingMessageListener(_onIncomingMessageForBadge);
+  }
 
   List<Friend> get friends => _friends;
   List<Friend> get favorites => _favorites;
@@ -147,5 +197,16 @@ class FriendsProvider extends ChangeNotifier {
     return 'Offline';
   }
 
-  bool isOnline(Friend f) => f.status == FriendStatus.online || f.status == FriendStatus.playing || (f.playingContent != null && f.playingContent!.isNotEmpty);
+  /// Considera online apenas se status é online/playing E (sem lastSeenAt OU visto nos últimos 5 min).
+  /// Evita bolinha verde para quem fechou o app há tempo.
+  bool isOnline(Friend f) {
+    if (f.status == FriendStatus.offline || f.status == FriendStatus.busy) return false;
+    if (f.playingContent != null && f.playingContent!.isNotEmpty) return true; // assistindo agora
+    if (f.status == FriendStatus.playing) return true;
+    if (f.status == FriendStatus.online) {
+      if (f.lastSeenAt != null && DateTime.now().difference(f.lastSeenAt!).inMinutes >= 5) return false;
+      return true;
+    }
+    return false;
+  }
 }

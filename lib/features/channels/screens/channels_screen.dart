@@ -121,36 +121,44 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
       ],
     );
 
+    // Desktop (isTV): evita duas barras — não usar TVSidebar aqui; usar só GroupsSidebar + conteúdo.
+    // Quem abriu por "Mais" usa o botão voltar para retornar à Home (que já tem a TVSidebar).
     if (isTV) {
       return Scaffold(
+        appBar: widget.embedded
+            ? null
+            : AppBar(
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                leading: IconButton(
+                  icon: const Icon(Icons.arrow_back_rounded),
+                  onPressed: () => Navigator.of(context).pop(),
+                  tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+                ),
+                title: Text(
+                  AppStrings.of(context)?.channels ?? 'Canais',
+                  style: TextStyle(color: AppTheme.getTextPrimary(context)),
+                ),
+              ),
         body: Container(
           decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: Theme.of(context).brightness == Brightness.dark
-                        ? [
-                            AppTheme.getBackgroundColor(context),
-                            AppTheme.getPrimaryColor(context).withOpacity(0.15),
-                            AppTheme.getBackgroundColor(context),
-                          ]
-                        : [
-                            AppTheme.getBackgroundColor(context),
-                            AppTheme.getBackgroundColor(context).withOpacity(0.9),
-                            AppTheme.getPrimaryColor(context).withOpacity(0.08),
-                          ],
-                  ),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: Theme.of(context).brightness == Brightness.dark
+                  ? [
+                      AppTheme.getBackgroundColor(context),
+                      AppTheme.getPrimaryColor(context).withOpacity(0.15),
+                      AppTheme.getBackgroundColor(context),
+                    ]
+                  : [
+                      AppTheme.getBackgroundColor(context),
+                      AppTheme.getBackgroundColor(context).withOpacity(0.9),
+                      AppTheme.getPrimaryColor(context).withOpacity(0.08),
+                    ],
+            ),
           ),
-          child: TVSidebar(
-            selectedIndex: 1, // 频道页
-            onRight: () {
-              // 主菜单按右键，跳转到当前分类
-              if (_groupFocusNodes.isNotEmpty && _currentGroupIndex < _groupFocusNodes.length) {
-                _groupFocusNodes[_currentGroupIndex].requestFocus();
-              }
-            },
-            child: content,
-          ),
+          child: content,
         ),
       );
     }
@@ -221,8 +229,8 @@ class _ChannelsScreenState extends State<ChannelsScreen> {
         ),
         child: content,
       ),
-      // 手机端添加分类抽屉
-      drawer: _buildMobileGroupsDrawer(),
+      // 手机端添加分类抽屉；embedado no desktop já tem navegação pela Home, não mostrar drawer
+      drawer: widget.embedded ? null : _buildMobileGroupsDrawer(),
     );
   }
 

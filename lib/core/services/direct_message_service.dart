@@ -105,6 +105,57 @@ class DirectMessageService {
 
   static const String _table = 'direct_messages';
 
+  final List<void Function(DirectMessage)> _incomingMessageListeners = [];
+  RealtimeChannel? _realtimeChannel;
+
+  /// Regista um listener para mensagens recebidas (Realtime). Usado pela ChatScreen.
+  void addIncomingMessageListener(void Function(DirectMessage) cb) {
+    _incomingMessageListeners.add(cb);
+    _ensureRealtimeSubscription();
+  }
+
+  /// Remove o listener. Chamar em dispose da ChatScreen.
+  void removeIncomingMessageListener(void Function(DirectMessage) cb) {
+    _incomingMessageListeners.remove(cb);
+    if (_incomingMessageListeners.isEmpty) _disposeRealtimeSubscription();
+  }
+
+  void _ensureRealtimeSubscription() {
+    final client = _client;
+    final userId = _userId;
+    if (client == null || userId == null || userId.isEmpty || _realtimeChannel != null) return;
+
+    _realtimeChannel = client.channel('direct_messages_$userId');
+    _realtimeChannel!.onPostgresChanges(
+      event: PostgresChangeEvent.insert,
+      schema: 'public',
+      table: _table,
+      filter: PostgresChangeFilter(
+        type: PostgresChangeFilterType.eq,
+        column: 'to_user_id',
+        value: userId,
+      ),
+      callback: (payload) {
+        try {
+          final map = Map<String, dynamic>.from(payload.newRecord);
+          final msg = DirectMessage.fromMap(map);
+          for (final cb in List<void Function(DirectMessage)>.from(_incomingMessageListeners)) {
+            cb(msg);
+          }
+        } catch (e) {
+          ServiceLocator.log.e('DirectMessageService Realtime parse', tag: 'Chat', error: e);
+        }
+      },
+    ).subscribe();
+  }
+
+  void _disposeRealtimeSubscription() async {
+    if (_realtimeChannel != null) {
+      await _realtimeChannel!.unsubscribe();
+      _realtimeChannel = null;
+    }
+  }
+
   /// Lista mensagens entre eu e outro usuário (ordenadas por data).
   Future<List<DirectMessage>> getMessages(String peerUserId, {int limit = 100}) async {
     final client = _client;

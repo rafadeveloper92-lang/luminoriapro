@@ -90,8 +90,13 @@ class CinemaRoomService {
   }
 
   /// Inscreve-se nas mudanças de sync da sala (Postgres Changes).
+  /// Se [onRoomDeleted] for fornecido, ao receber DELETE na sala (host saiu), chama o callback.
   /// Retorna o canal; cancele com [channel.unsubscribe()]. Retorna null se Supabase não estiver configurado.
-  RealtimeChannel? subscribeToSync(String roomId, void Function(CinemaRoom room) onSync) {
+  RealtimeChannel? subscribeToSync(
+    String roomId,
+    void Function(CinemaRoom room) onSync, {
+    void Function()? onRoomDeleted,
+  }) {
     final client = _client;
     if (client == null) return null;
 
@@ -108,7 +113,21 @@ class CinemaRoomService {
       callback: (payload) {
         onSync(CinemaRoom.fromMap(Map<String, dynamic>.from(payload.newRecord)));
       },
-    ).subscribe();
+    );
+    if (onRoomDeleted != null) {
+      channel.onPostgresChanges(
+        event: PostgresChangeEvent.delete,
+        schema: 'public',
+        table: 'cinema_rooms',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'id',
+          value: roomId,
+        ),
+        callback: (_) => onRoomDeleted(),
+      );
+    }
+    channel.subscribe();
 
     return channel;
   }

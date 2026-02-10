@@ -1,4 +1,6 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
+import 'package:flutter/widgets.dart';
 import '../../../core/models/channel.dart';
 import '../../../core/models/channel_group.dart';
 import '../../../core/models/playlist.dart';
@@ -53,6 +55,18 @@ class ChannelProvider extends ChangeNotifier {
 
   int get totalChannelCount => _channels.length;
 
+  /// Evita "setState/markNeedsBuild called during build": adia notify para depois do frame.
+  void _safeNotify() {
+    final phase = SchedulerBinding.instance.schedulerPhase;
+    if (phase == SchedulerPhase.persistentCallbacks || phase == SchedulerPhase.transientCallbacks) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (hasListeners) notifyListeners();
+      });
+      return;
+    }
+    notifyListeners();
+  }
+
   // Load channels for a specific playlist
   Future<void> loadChannels(int playlistId) async {
     ServiceLocator.log.i('加载播放列表频道: $playlistId', tag: 'ChannelProvider');
@@ -68,7 +82,7 @@ class ChannelProvider extends ChangeNotifier {
     _xtreamBaseUrl = null;
     _xtreamUsername = null;
     _xtreamPassword = null;
-    notifyListeners();
+    _safeNotify();
 
     try {
       // Check playlist type first
@@ -110,7 +124,7 @@ class ChannelProvider extends ChangeNotifier {
     }
 
     _isLoading = false;
-    notifyListeners();
+    _safeNotify();
   }
   
   Future<void> _loadXtreamData(String url) async {
@@ -141,7 +155,7 @@ class ChannelProvider extends ChangeNotifier {
       _vodCategories = results[0];
       _seriesCategories = results[1];
       
-      notifyListeners();
+      _safeNotify();
 
     } catch (e) {
       ServiceLocator.log.e('Failed to load Xtream extra data: $e');
@@ -153,7 +167,7 @@ class ChannelProvider extends ChangeNotifier {
     if (!_isXtream || _xtreamBaseUrl == null) return;
     
     _isLoading = true;
-    notifyListeners();
+    _safeNotify();
     
     try {
       final service = XtreamService();
@@ -168,14 +182,14 @@ class ChannelProvider extends ChangeNotifier {
     }
 
     _isLoading = false;
-    notifyListeners();
+    _safeNotify();
   }
 
   // Load all channels from all active playlists
   Future<void> loadAllChannels() async {
     _isLoading = true;
     _error = null;
-    notifyListeners();
+    _safeNotify();
 
     try {
       final results = await ServiceLocator.database.rawQuery('''
@@ -196,7 +210,7 @@ class ChannelProvider extends ChangeNotifier {
     }
 
     _isLoading = false;
-    notifyListeners();
+    _safeNotify();
   }
 
   void _updateGroups() {
@@ -231,12 +245,12 @@ class ChannelProvider extends ChangeNotifier {
     } catch (e) {
       ServiceLocator.log.w('清理台标队列失败: $e');
     }
-    notifyListeners();
+    _safeNotify();
   }
 
   void clearGroupFilter() {
     _selectedGroup = null;
-    notifyListeners();
+    _safeNotify();
   }
 
   List<Channel> searchChannels(String query) {
@@ -264,7 +278,7 @@ class ChannelProvider extends ChangeNotifier {
     final index = _channels.indexWhere((c) => c.id == channelId);
     if (index != -1) {
       _channels[index] = _channels[index].copyWith(isFavorite: isFavorite);
-      notifyListeners();
+      _safeNotify();
     }
   }
 
@@ -275,7 +289,7 @@ class ChannelProvider extends ChangeNotifier {
         _channels[i] = _channels[i].copyWith(isCurrentlyPlaying: isPlaying);
       }
     }
-    notifyListeners();
+    _safeNotify();
   }
 
   Future<void> addChannels(List<Channel> channels) async {
@@ -288,7 +302,7 @@ class ChannelProvider extends ChangeNotifier {
       }
     } catch (e) {
       _error = 'Failed to add channels: $e';
-      notifyListeners();
+      _safeNotify();
     }
   }
 
@@ -302,10 +316,10 @@ class ChannelProvider extends ChangeNotifier {
 
       _channels.removeWhere((c) => c.playlistId == playlistId);
       _updateGroups();
-      notifyListeners();
+      _safeNotify();
     } catch (e) {
       _error = 'Failed to delete channels: $e';
-      notifyListeners();
+      _safeNotify();
     }
   }
 
@@ -358,10 +372,10 @@ class ChannelProvider extends ChangeNotifier {
       }
 
       _updateGroups();
-      notifyListeners();
+      _safeNotify();
     } catch (e) {
       _error = 'Failed to mark channels as unavailable: $e';
-      notifyListeners();
+      _safeNotify();
     }
   }
 
@@ -387,11 +401,11 @@ class ChannelProvider extends ChangeNotifier {
       }
 
       _updateGroups();
-      notifyListeners();
+      _safeNotify();
       return true;
     } catch (e) {
       _error = 'Failed to restore channel: $e';
-      notifyListeners();
+      _safeNotify();
       return false;
     }
   }
@@ -406,11 +420,11 @@ class ChannelProvider extends ChangeNotifier {
 
       _channels.removeWhere((c) => isUnavailableChannel(c.groupName));
       _updateGroups();
-      notifyListeners();
+      _safeNotify();
       return count;
     } catch (e) {
       _error = 'Failed to delete unavailable channels: $e';
-      notifyListeners();
+      _safeNotify();
       return 0;
     }
   }
@@ -430,6 +444,6 @@ class ChannelProvider extends ChangeNotifier {
     _xtreamBaseUrl = null;
     _xtreamUsername = null;
     _xtreamPassword = null;
-    notifyListeners();
+    _safeNotify();
   }
 }

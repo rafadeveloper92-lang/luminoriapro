@@ -35,11 +35,19 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _loading = true;
   bool _sending = false;
 
+  void _onIncomingMessage(DirectMessage msg) {
+    if (msg.fromUserId != widget.peerUserId) return;
+    if (!mounted) return;
+    setState(() => _messages.add(msg));
+    _scrollToBottom();
+  }
+
   @override
   void initState() {
     super.initState();
     _loadMessages();
     DirectMessageService.instance.markAsRead(widget.peerUserId);
+    DirectMessageService.instance.addIncomingMessageListener(_onIncomingMessage);
   }
 
   Future<void> _loadMessages() async {
@@ -126,6 +134,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
+    DirectMessageService.instance.removeIncomingMessageListener(_onIncomingMessage);
     _controller.dispose();
     _scrollController.dispose();
     super.dispose();

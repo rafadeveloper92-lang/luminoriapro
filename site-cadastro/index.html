@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cadastro | Luminoria</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --bg: #0f0f12;
+      --card: #1a1a1f;
+      --text: #f0f0f0;
+      --text-muted: #888;
+      --primary: #E91E63;
+      --primary-hover: #d81b5c;
+      --border: #2a2a30;
+      --error: #f44336;
+      --success: #4caf50;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    a { color: var(--primary); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .container {
+      width: 100%;
+      max-width: 400px;
+      background: var(--card);
+      border-radius: 12px;
+      padding: 32px;
+      border: 1px solid var(--border);
+    }
+    h1 {
+      margin: 0 0 8px 0;
+      font-size: 1.5rem;
+    }
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      margin-bottom: 24px;
+    }
+    .form-group {
+      margin-bottom: 16px;
+    }
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+    input[type="email"],
+    input[type="password"] {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 1rem;
+    }
+    input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+    .checkbox-group {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .checkbox-group input { width: auto; margin-top: 4px; }
+    .checkbox-group label { margin: 0; font-size: 0.85rem; }
+    .btn {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      background: var(--primary);
+      color: white;
+    }
+    .btn:hover { background: var(--primary-hover); }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .message {
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      font-size: 0.9rem;
+    }
+    .message.error { background: rgba(244,67,54,0.15); color: var(--error); }
+    .message.success { background: rgba(76,175,80,0.15); color: var(--success); }
+    .hidden { display: none !important; }
+    .footer {
+      margin-top: 24px;
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🪷 Criar conta</h1>
+    <p class="subtitle">Registe-se para usar o player Luminoria no app.</p>
+
+    <div id="message" class="message hidden"></div>
+
+    <form id="form" autocomplete="on">
+      <div class="form-group">
+        <label for="email">E-mail</label>
+        <input type="email" id="email" name="email" required placeholder="seu@email.com">
+      </div>
+      <div class="form-group">
+        <label for="password">Senha</label>
+        <input type="password" id="password" name="password" required minlength="6" placeholder="Mín. 6 caracteres">
+      </div>
+      <div class="form-group">
+        <label for="password2">Confirmar senha</label>
+        <input type="password" id="password2" name="password2" required placeholder="Repita a senha">
+      </div>
+      <div class="checkbox-group">
+        <input type="checkbox" id="terms" name="terms" required>
+        <label for="terms">Aceito os <a href="#" id="linkTerms">Termos de Uso e Política Legal</a>.</label>
+      </div>
+      <button type="submit" class="btn" id="btnSubmit">Criar conta</button>
+    </form>
+
+    <p class="footer">
+      Já tem conta? <a href="javascript:showLogin()">Entrar</a><br>
+      <a href="https://rafadeveloper92-lang.github.io/site/">← Voltar ao site</a>
+    </p>
+  </div>
+
+  <script src="config.js"></script>
+  <script>
+    // Configuração: config.js define window.SUPABASE_URL e window.SUPABASE_ANON_KEY
+    // A anon key é segura no frontend; nunca use a service_role key.
+    const SUPABASE_URL = window.SUPABASE_URL || '';
+    const SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || '';
+
+    let supabase = null;
+    let isLoginMode = false;
+
+    function initSupabase() {
+      if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+        showMessage('Configure SUPABASE_URL e SUPABASE_ANON_KEY em config.js (ou no topo do script).', true);
+        return false;
+      }
+      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      return true;
+    }
+
+    function showMessage(text, isError) {
+      const el = document.getElementById('message');
+      el.textContent = text;
+      el.className = 'message ' + (isError ? 'error' : 'success');
+      el.classList.remove('hidden');
+    }
+
+    function hideMessage() {
+      document.getElementById('message').classList.add('hidden');
+    }
+
+    document.getElementById('linkTerms').addEventListener('click', function(e) {
+      e.preventDefault();
+      alert(
+        '1. O Luminoria é um reprodutor de mídia. Não fornecemos conteúdo.\n\n' +
+        '2. O utilizador é responsável pelo conteúdo que adiciona.\n\n' +
+        '3. Condenamos a pirataria. Use apenas conteúdo com permissão.\n\n' +
+        '4. Dados básicos (nome, e-mail, histórico) são armazenados de forma segura.'
+      );
+    });
+
+    function showLogin() {
+      isLoginMode = true;
+      document.querySelector('h1').textContent = '🪷 Entrar';
+      document.querySelector('.subtitle').textContent = 'Acesse a sua conta Luminoria.';
+      document.getElementById('password2').closest('.form-group').style.display = 'none';
+      document.getElementById('btnSubmit').textContent = 'Entrar';
+      document.querySelector('.footer a[href="javascript:showLogin()"]').outerHTML = '<a href="javascript:showSignup()">Criar conta</a>';
+      hideMessage();
+    }
+
+    function showSignup() {
+      isLoginMode = false;
+      document.querySelector('h1').textContent = '🪷 Criar conta';
+      document.querySelector('.subtitle').textContent = 'Registe-se para usar o player Luminoria no app.';
+      document.getElementById('password2').closest('.form-group').style.display = 'block';
+      document.getElementById('btnSubmit').textContent = 'Criar conta';
+      document.querySelector('.footer').innerHTML = 'Já tem conta? <a href="javascript:showLogin()">Entrar</a><br><a href="https://rafadeveloper92-lang.github.io/site/">← Voltar ao site</a>';
+      hideMessage();
+    }
+
+    document.getElementById('form').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      hideMessage();
+
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const password2 = document.getElementById('password2').value;
+
+      if (!email || !password) {
+        showMessage('Preencha e-mail e senha.', true);
+        return;
+      }
+      if (!isLoginMode && password !== password2) {
+        showMessage('As senhas não coincidem.', true);
+        return;
+      }
+      if (!isLoginMode && password.length < 6) {
+        showMessage('A senha deve ter pelo menos 6 caracteres.', true);
+        return;
+      }
+
+      if (!supabase && !initSupabase()) return;
+
+      const btn = document.getElementById('btnSubmit');
+      btn.disabled = true;
+
+      try {
+        if (isLoginMode) {
+          const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+          if (error) throw error;
+          showMessage('Entrou com sucesso. Pode fechar esta página e abrir o app.', false);
+        } else {
+          const { data, error } = await supabase.auth.signUp({ email, password });
+          if (error) throw error;
+          if (data.user && data.user.identities && data.user.identities.length === 0) {
+            showMessage('Já existe uma conta com este e-mail. Use "Entrar" ou recupere a senha no app.', true);
+          } else {
+            showMessage('Conta criada! Verifique o seu e-mail para confirmar (se tiver confirmação ativada). Depois pode abrir o app e entrar.', false);
+          }
+        }
+      } catch (err) {
+        showMessage(err.message || 'Ocorreu um erro. Tente novamente.', true);
+      }
+      btn.disabled = false;
+    });
+
+    if (document.getElementById('password2').value === '' && window.location.search.includes('login')) {
+      showLogin();
+    }
+    initSupabase();
+  </script>
+</body>
+</html>

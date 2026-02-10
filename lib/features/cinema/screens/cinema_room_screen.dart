@@ -92,11 +92,32 @@ class _CinemaRoomScreenState extends State<CinemaRoomScreen> {
       _historyRecorded = true;
     }
     
-    Future.delayed(const Duration(milliseconds: 1000), () {
+    _waitForPlayerReadyAndSync(player, room);
+  }
+
+  /// Aguarda o player estar pronto (duration > 0) antes de fazer seek, para evitar
+  /// que o vídeo comece do início quando o seek é feito antes do media_kit carregar.
+  Future<void> _waitForPlayerReadyAndSync(PlayerProvider player, CinemaRoom room) async {
+    const maxAttempts = 50; // 50 * 200ms = 10 segundos de timeout
+    const interval = Duration(milliseconds: 200);
+
+    for (var i = 0; i < maxAttempts; i++) {
+      await Future.delayed(interval);
       if (!mounted || _isExiting) return;
+
+      // Player pronto quando duration > 0 (media carregou e aceita seek)
+      if (player.duration.inMilliseconds > 0) {
+        player.seek(Duration(milliseconds: room.currentTimeMs));
+        if (!room.isPlaying) player.pause();
+        return;
+      }
+    }
+
+    // Timeout: tenta seek mesmo assim (alguns streams podem aceitar)
+    if (mounted && !_isExiting) {
       player.seek(Duration(milliseconds: room.currentTimeMs));
       if (!room.isPlaying) player.pause();
-    });
+    }
   }
 
   void _onCinemaUpdate() {

@@ -67,6 +67,17 @@ class UserProfileService {
     }
   }
 
+  /// Soma minutos assistidos no mês atual (ranking global mensal). Chamar ao reportar sessão.
+  Future<void> addMonthlyWatchMinutes(int minutes) async {
+    final client = _client;
+    if (client == null || minutes < 1) return;
+    try {
+      await client.rpc('add_monthly_watch_minutes', params: {'p_minutes': minutes});
+    } catch (e, st) {
+      ServiceLocator.log.e('UserProfileService.addMonthlyWatchMinutes', tag: 'Profile', error: e, stackTrace: st);
+    }
+  }
+
   /// Cria ou atualiza perfil (upsert por user_id).
   Future<UserProfile?> saveProfile(UserProfile profile) async {
     lastError = null;

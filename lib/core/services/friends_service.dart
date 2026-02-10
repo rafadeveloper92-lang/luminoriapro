@@ -61,7 +61,7 @@ class FriendsService {
           final uid = m['user_id']?.toString();
           if (uid != null) profilesMap[uid] = m;
         }
-        final statuses = await client.from(_tableUserStatus).select('user_id, status, playing_content').inFilter('user_id', friendUserIds);
+        final statuses = await client.from(_tableUserStatus).select('user_id, status, playing_content, updated_at').inFilter('user_id', friendUserIds);
         for (final s in statuses) {
           final m = Map<String, dynamic>.from(s as Map);
           final uid = m['user_id']?.toString();
@@ -75,14 +75,18 @@ class FriendsService {
         final friendUserId = m['friend_user_id']?.toString() ?? '';
         final p = profilesMap[friendUserId];
         final s = statusMap[friendUserId];
+        final statusStr = s?['status'] as String? ?? 'offline';
+        final status = FriendStatus.values.firstWhere(
+          (e) => e.name == statusStr,
+          orElse: () => FriendStatus.offline,
+        );
+        final lastSeenAt = s?['updated_at'] != null ? Friend.parseDateTime(s!['updated_at']) : null;
         list.add(Friend(
           id: m['id']?.toString() ?? '',
           displayName: p?['display_name'] as String? ?? '',
           avatarUrl: p?['avatar_url'] as String?,
-          status: FriendStatus.values.firstWhere(
-            (e) => e.name == (s?['status'] as String? ?? 'offline'),
-            orElse: () => FriendStatus.offline,
-          ),
+          status: status,
+          lastSeenAt: lastSeenAt,
           isFavorite: m['is_favorite'] as bool? ?? false,
           playingContent: s?['playing_content'] as String?,
           position: m['position'] as int? ?? 0,
@@ -199,7 +203,7 @@ class FriendsService {
     }
   }
 
-  /// Sugestões: perfis que não são amigos ainda (máx. 10).
+  /// Sugestões: perfis que não são amigos nem já solicitados (máx. 10).
   Future<List<Friend>> getSuggestions() async {
     final client = _client;
     final userId = _userId;
@@ -207,11 +211,15 @@ class FriendsService {
 
     try {
       final friendsRows = await client.from(_tableFriends).select('friend_user_id').eq('user_id', userId);
-      final friendIds = <String>{userId};
+      final requestRows = await client.from(_tableRequests).select('to_user_id').eq('from_user_id', userId);
+      final excludeIds = <String>{userId};
       for (final r in friendsRows as List) {
-        final m = Map<String, dynamic>.from(r as Map);
-        final fid = m['friend_user_id']?.toString();
-        if (fid != null) friendIds.add(fid);
+        final fid = (r as Map)['friend_user_id']?.toString();
+        if (fid != null) excludeIds.add(fid);
+      }
+      for (final r in requestRows as List) {
+        final tid = (r as Map)['to_user_id']?.toString();
+        if (tid != null) excludeIds.add(tid);
       }
 
       final profiles = await client
@@ -219,24 +227,46 @@ class FriendsService {
           .select('user_id, display_name, avatar_url')
           .limit(50);
 
+      final suggestionIds = <String>[];
       final list = <Friend>[];
       for (final row in profiles) {
         final m = Map<String, dynamic>.from(row as Map);
         final uid = m['user_id']?.toString();
-        if (uid == null || friendIds.contains(uid)) continue;
-        friendIds.add(uid);
+        if (uid == null || excludeIds.contains(uid)) continue;
+        excludeIds.add(uid);
+        suggestionIds.add(uid);
         list.add(Friend(
           id: uid,
           displayName: m['display_name'] as String? ?? 'Usuário',
           avatarUrl: m['avatar_url'] as String?,
-          status: FriendStatus.online,
+          status: FriendStatus.offline,
           isFavorite: false,
           createdAt: DateTime.now(),
           peerUserId: uid,
         ));
         if (list.length >= 10) break;
       }
-      return list;
+
+      if (suggestionIds.isEmpty) return list;
+
+      final statuses = await client.from(_tableUserStatus).select('user_id, status, playing_content, updated_at').inFilter('user_id', suggestionIds);
+      final statusMap = <String, Map<String, dynamic>>{};
+      for (final s in statuses) {
+        final m = Map<String, dynamic>.from(s as Map);
+        final uid = m['user_id']?.toString();
+        if (uid != null) statusMap[uid] = m;
+      }
+
+      return list.map((f) {
+        final s = statusMap[f.peerUserId ?? f.id];
+        final statusStr = s?['status'] as String? ?? 'offline';
+        final status = FriendStatus.values.firstWhere(
+          (e) => e.name == statusStr,
+          orElse: () => FriendStatus.offline,
+        );
+        final lastSeenAt = s?['updated_at'] != null ? Friend.parseDateTime(s!['updated_at']) : null;
+        return f.copyWith(status: status, lastSeenAt: lastSeenAt, playingContent: s?['playing_content'] as String?);
+      }).toList();
     } catch (e) {
       ServiceLocator.log.e('FriendsService.getSuggestions', tag: 'Friends', error: e);
       return [];

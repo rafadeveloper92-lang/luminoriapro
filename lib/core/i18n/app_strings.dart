@@ -260,6 +260,7 @@ class AppStrings {
   String get logFileLocation => _localizedValues['logFileLocation']!;
   String get checkUpdate => _localizedValues['checkUpdate']!;
   String get checkUpdateSubtitle => _localizedValues['checkUpdateSubtitle']!;
+  String get checkingUpdate => _localizedValues['checkingUpdate']!;
   String get colorScheme => _localizedValues['colorScheme']!;
   String get selectColorScheme => _localizedValues['selectColorScheme']!;
   String get customColorPicker => _localizedValues['customColorPicker']!;
@@ -624,6 +625,7 @@ class _AppStringsDelegate extends LocalizationsDelegate<AppStrings> {
     'logFileLocation': '位置',
     'checkUpdate': '更新',
     'checkUpdateSubtitle': '副标题',
+    'checkingUpdate': '正在检查更新...',
     'colorScheme': '配色',
     'selectColorScheme': '选择',
     'customColorPicker': '拾色器',
@@ -964,6 +966,7 @@ class _AppStringsDelegate extends LocalizationsDelegate<AppStrings> {
     'logFileLocation': 'Location',
     'checkUpdate': 'Update',
     'checkUpdateSubtitle': 'Subtitle',
+    'checkingUpdate': 'Checking for updates...',
     'colorScheme': 'Color Scheme',
     'selectColorScheme': 'Select Color Scheme',
     'customColorPicker': 'Picker',

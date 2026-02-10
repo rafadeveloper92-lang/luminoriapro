@@ -7,6 +7,9 @@ import '../../../core/config/license_config.dart';
 import '../../../core/services/service_locator.dart';
 import '../../../core/services/admin_auth_service.dart';
 import '../../../core/services/auto_refresh_service.dart';
+import '../../../core/services/update_service.dart';
+import '../../../core/managers/update_manager.dart';
+import '../../../core/models/app_update.dart';
 import '../../../core/platform/tv_detection_channel.dart';
 import '../../../core/platform/platform_detector.dart';
 import '../../../core/i18n/app_strings.dart';
@@ -27,6 +30,9 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   late Animation<double> _logoOpacity;
   late Animation<double> _textOpacity;
   late Animation<Offset> _textSlide;
+
+  /// Mensagem exibida na barra de progresso (ex.: "A carregar..." ou "Verificando atualizações...").
+  String? _loadingMessage;
 
   @override
   void initState() {
@@ -91,13 +97,41 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     // Ensure minimum splash display time
     await Future.delayed(const Duration(milliseconds: 1500));
 
-    if (mounted) {
-      // Só usa Supabase (AdminAuthService) se estiver configurado no .env; senão vai para login.
-      final hasSession = LicenseConfig.isConfigured && AdminAuthService.instance.isSignedIn;
-      Navigator.of(context).pushReplacementNamed(
-        hasSession ? AppRouter.auth : AppRouter.login,
-      );
+    if (!mounted) return;
+
+    // Verificação de atualizações antes de navegar
+    setState(() {
+      _loadingMessage = AppStrings.of(context)?.checkingUpdate ?? 'Verificando atualizações...';
+    });
+
+    AppUpdate? update;
+    try {
+      update = await UpdateService().checkForUpdates(forceCheck: true);
+    } catch (_) {
+      // Em falha, continuar sem mostrar diálogo
     }
+
+    if (!mounted) return;
+
+    if (update != null) {
+      UpdateManager().showUpdateDialog(
+        context,
+        update,
+        onDismiss: () {
+          if (mounted) _navigateToApp();
+        },
+      );
+    } else {
+      _navigateToApp();
+    }
+  }
+
+  void _navigateToApp() {
+    if (!mounted) return;
+    final hasSession = LicenseConfig.isConfigured && AdminAuthService.instance.isSignedIn;
+    Navigator.of(context).pushReplacementNamed(
+      hasSession ? AppRouter.auth : AppRouter.login,
+    );
   }
 
   @override
@@ -227,7 +261,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        AppStrings.of(context)?.loading ?? 'Loading...',
+                        _loadingMessage ?? (AppStrings.of(context)?.loading ?? 'Loading...'),
                         style: TextStyle(
                           fontSize: 12,
                           color: AppTheme.getTextMuted(context),

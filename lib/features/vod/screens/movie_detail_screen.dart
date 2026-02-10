@@ -1,7 +1,9 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
+import '../../../core/platform/platform_detector.dart';
 import '../../../core/models/xtream_models.dart';
 import '../../../core/services/xtream_service.dart';
 import '../../../core/services/tmdb_service.dart';
@@ -92,7 +94,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
     
     // Constrói a URL usando o método específico para filmes
     final url = service.getVodStreamUrl(widget.movie.streamId, extension);
-    print('URL DO FILME: $url');
+    ServiceLocator.log.d('MovieDetail: play URL: $url', tag: 'VOD');
 
     VodWatchHistoryService.instance.addWatchHistory(
       streamId: widget.movie.streamId,
@@ -605,6 +607,14 @@ class _CinemaRoomInfoCard extends StatelessWidget {
   }
 }
 
+/// Abre o trailer no navegador (fallback quando o player in-app falha, ex.: Windows).
+Future<void> _openYoutubeTrailerInBrowser(String videoId) async {
+  final uri = Uri.parse('https://www.youtube.com/watch?v=$videoId');
+  if (await canLaunchUrl(uri)) {
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+}
+
 /// Tela em fullscreen para assistir o trailer no app (YouTube nativo).
 class _YoutubeTrailerScreen extends StatefulWidget {
   final String videoId;
@@ -637,6 +647,10 @@ class _YoutubeTrailerScreenState extends State<_YoutubeTrailerScreen> {
     super.dispose();
   }
 
+  Future<void> _openInBrowser() async {
+    await _openYoutubeTrailerInBrowser(widget.videoId);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -648,12 +662,41 @@ class _YoutubeTrailerScreenState extends State<_YoutubeTrailerScreen> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: const Text('Trailer', style: TextStyle(color: Colors.white)),
+        actions: [
+          TextButton.icon(
+            onPressed: _openInBrowser,
+            icon: const Icon(Icons.open_in_browser, color: Colors.white70, size: 20),
+            label: const Text('Abrir no navegador', style: TextStyle(color: Colors.white70)),
+          ),
+        ],
       ),
-      body: Center(
-        child: AspectRatio(
-          aspectRatio: 16 / 9,
-          child: YoutubePlayer(controller: _controller),
-        ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final maxH = constraints.maxHeight;
+          final maxW = constraints.maxWidth;
+          final videoH = (maxW * 9 / 16).clamp(0.0, maxH - (PlatformDetector.isDesktop ? 36 : 0));
+          return SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (PlatformDetector.isDesktop)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text(
+                      'Se o trailer não carregar, use "Abrir no navegador".',
+                      style: TextStyle(color: Colors.white54, fontSize: 12),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                SizedBox(
+                  height: videoH,
+                  width: maxW,
+                  child: YoutubePlayer(controller: _controller),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }

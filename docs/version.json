@@ -5,14 +5,14 @@
   "assets": {
     "windows": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.38/flutteriptv-Windows-x64-Setup.exe",
     "android_mobile": {
-      "arm64-v8a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.38/flutteriptv-Android-Mobile-arm64-v8a.apk",
-      "armeabi-v7a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.38/flutteriptv-Android-Mobile-armeabi-v7a.apk",
-      "x86_64": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.38/flutteriptv-Android-Mobile-x86_64.apk"
+      "arm64-v8a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.38/flutteriptv-Android-arm64.apk",
+      "armeabi-v7a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.38/flutteriptv-Android-arm64.apk",
+      "x86_64": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.38/flutteriptv-Android-arm64.apk"
     },
     "android_tv": {
-      "arm64-v8a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.38/flutteriptv-AndroidTV-arm64-v8a.apk",
-      "armeabi-v7a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.38/flutteriptv-AndroidTV-armeabi-v7a.apk",
-      "x86_64": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.38/flutteriptv-AndroidTV-x86_64.apk"
+      "arm64-v8a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.38/flutteriptv-Android-arm64.apk",
+      "armeabi-v7a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.38/flutteriptv-Android-arm64.apk",
+      "x86_64": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.38/flutteriptv-Android-arm64.apk"
     },
     "ios": {
       "universal": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.38/flutteriptv-iOS-unsigned.ipa"

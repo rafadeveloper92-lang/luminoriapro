@@ -101,7 +101,7 @@ class _CinemaJoinScreenState extends State<CinemaJoinScreen> {
                 maxLength: 6,
                 autocorrect: false,
                 decoration: InputDecoration(
-                  hintText: 'XXXXXX',
+                  hintText: 'Código ou nome da sala',
                   hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
                   counterText: '',
                   filled: true,

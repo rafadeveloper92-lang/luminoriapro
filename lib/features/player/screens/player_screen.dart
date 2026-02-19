@@ -35,7 +35,7 @@ class PlayerScreen extends StatefulWidget {
   final String channelUrl;
   final String channelName;
   final String? channelLogo;
-  final bool isMultiScreen; // 是否强制进入分屏模式
+  final bool isMultiScreen;
   /// true quando o conteúdo é filme/série (VOD): concede 1 moeda por minuto assistido.
   final bool isVod;
 
@@ -59,8 +59,8 @@ class _PlayerScreenState extends State<PlayerScreen>
   static const bool _forceSinglePlayerForTesting = true;
 
   Timer? _hideControlsTimer;
-  Timer? _dlnaSyncTimer; // DLNA 状态同步定时器（Android TV 原生播放器用）
-  Timer? _wakelockTimer; // 定期刷新wakelock（手机端用）
+  Timer? _dlnaSyncTimer;
+  Timer? _wakelockTimer;
   bool _showControls = true;
   final FocusNode _playerFocusNode = FocusNode();
   bool _usingNativePlayer = false;
@@ -69,16 +69,12 @@ class _PlayerScreenState extends State<PlayerScreen>
   final ScrollController _categoryScrollController = ScrollController();
   final ScrollController _channelScrollController = ScrollController();
 
-  // 保存 provider 引用，用于 dispose 时释放资源
   PlayerProvider? _playerProvider;
   MultiScreenProvider? _multiScreenProvider;
   SettingsProvider? _settingsProvider;
   ProfileProvider? _profileProvider;
 
-  // 本地分屏模式状态（不影响设置）
   bool _localMultiScreenMode = false;
-
-  // 保存分屏模式状态，用于 dispose 时判断
   bool _wasMultiScreenMode = false;
 
   // 标记是否已经保存了分屏状态（避免重复保存）
@@ -628,7 +624,6 @@ class _PlayerScreenState extends State<PlayerScreen>
     // Limpa status de "assistindo" quando o player fecha
     FriendsService.instance.setUserPlayingContent(null);
 
-    // 首先移除 provider 监听器，防止后续更新触发错误显示
     if (_playerProvider != null) {
       _playerProvider!.removeListener(_onProviderUpdate);
     }

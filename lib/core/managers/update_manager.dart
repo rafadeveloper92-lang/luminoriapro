@@ -217,19 +217,39 @@ class UpdateManager {
 
       if (file != null) {
         ServiceLocator.log.d('UPDATE_MANAGER: 下载完成，开始安装: ${file.path}');
-        await _installApk(file.path);
-        
-        // 安装启动后删除缓存文件（延迟删除，确保安装程序已读取文件）
-        Future.delayed(const Duration(seconds: 5), () async {
-          try {
-            if (await file.exists()) {
-              await file.delete();
-              ServiceLocator.log.d('UPDATE_MANAGER: 已删除安装缓存文件');
+        try {
+          await _installApk(file.path);
+          
+          // 安装启动后删除缓存文件（延迟删除，确保安装程序已读取文件）
+          Future.delayed(const Duration(seconds: 5), () async {
+            try {
+              if (await file.exists()) {
+                await file.delete();
+                ServiceLocator.log.d('UPDATE_MANAGER: 已删除安装缓存文件');
+              }
+            } catch (e) {
+              ServiceLocator.log.d('UPDATE_MANAGER: 删除缓存文件失败: $e');
             }
-          } catch (e) {
-            ServiceLocator.log.d('UPDATE_MANAGER: 删除缓存文件失败: $e');
+          });
+        } catch (installError) {
+          // Erro específico de instalação - mostra mensagem mais clara
+          if (dialogContext != null && dialogContext!.mounted) {
+            Navigator.of(dialogContext!).pop();
           }
-        });
+          if (context.mounted) {
+            final errorMsg = installError.toString();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(errorMsg.contains('Conflito') || errorMsg.contains('conflito')
+                    ? errorMsg
+                    : 'Falha na instalação: $installError'),
+                backgroundColor: Colors.red,
+                duration: const Duration(seconds: 5),
+              ),
+            );
+          }
+          return;
+        }
       } else {
         throw Exception('下载失败');
       }
@@ -255,6 +275,14 @@ class UpdateManager {
       await _installChannel.invokeMethod('installApk', {'filePath': filePath});
     } catch (e) {
       ServiceLocator.log.d('UPDATE_MANAGER: 安装 APK 失败: $e');
+      // Se o erro for de conflito de instalação, fornece mensagem mais clara
+      final errorMsg = e.toString();
+      if (errorMsg.contains('INSTALL_FAILED_UPDATE_INCOMPATIBLE') || 
+          errorMsg.contains('INSTALL_FAILED_ALREADY_EXISTS') ||
+          errorMsg.contains('conflict') ||
+          errorMsg.contains('conflito')) {
+        throw Exception('Conflito de instalação detectado. Por favor, desinstale a versão antiga manualmente e tente novamente.');
+      }
       rethrow;
     }
   }

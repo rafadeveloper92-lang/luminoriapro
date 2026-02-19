@@ -362,6 +362,38 @@ class AppStrings {
   String get daysAgo => _localizedValues['daysAgo']!;
   String get epgAutoApplied => _localizedValues['epgAutoApplied']!;
 
+  // Social / friends / profile / chat
+  String get chat => _localizedValues['chat']!;
+  String get removeFriend => _localizedValues['removeFriend']!;
+  String get sendFriendRequest => _localizedValues['sendFriendRequest']!;
+  String get noMessagesYet => _localizedValues['noMessagesYet']!;
+  String get viewFullProfile => _localizedValues['viewFullProfile']!;
+  String get removeFromFavorites => _localizedValues['removeFromFavorites']!;
+  String get requestSent => _localizedValues['requestSent']!;
+  String get couldNotSendRequest => _localizedValues['couldNotSendRequest']!;
+  String get deleteFriendConfirm => _localizedValues['deleteFriendConfirm']!;
+  String get deleteFriendConfirmMessage => _localizedValues['deleteFriendConfirmMessage']!;
+  String get loadFailed => _localizedValues['loadFailed']!;
+  String get friendCountLabel => _localizedValues['friendCountLabel']!;
+  String get friendsCountLabel => _localizedValues['friendsCountLabel']!;
+  String get addFriend => _localizedValues['addFriend']!;
+  String get pending => _localizedValues['pending']!;
+  String get suggestMovie => _localizedValues['suggestMovie']!;
+  String get messageHint => _localizedValues['messageHint']!;
+  String get routeNotDefined => _localizedValues['routeNotDefined']!;
+  String get noTitle => _localizedValues['noTitle']!;
+  String get profileLabel => _localizedValues['profileLabel']!;
+  String get acceptLabel => _localizedValues['acceptLabel']!;
+  String get rejectLabel => _localizedValues['rejectLabel']!;
+  String get userLabel => _localizedValues['userLabel']!;
+  String get filterAll => _localizedValues['filterAll']!;
+  String get filterOnline => _localizedValues['filterOnline']!;
+  String get filterPending => _localizedValues['filterPending']!;
+  String get myProfile => _localizedValues['myProfile']!;
+  String get myFriendsCount => _localizedValues['myFriendsCount']!;
+  String get noPendingRequests => _localizedValues['noPendingRequests']!;
+  String get noFriendsFound => _localizedValues['noFriendsFound']!;
+
   // Accessor to safely get string or key
   String operator [](String key) => _localizedValues[key] ?? key;
 }
@@ -732,6 +764,36 @@ class _AppStringsDelegate extends LocalizationsDelegate<AppStrings> {
     'hoursAgo': '时前',
     'daysAgo': '天前',
     'epgAutoApplied': '成功',
+    'chat': '聊天',
+    'removeFriend': '删除好友',
+    'sendFriendRequest': '发送好友请求',
+    'noMessagesYet': '暂无消息',
+    'viewFullProfile': '查看完整资料',
+    'removeFromFavorites': '从收藏移除',
+    'requestSent': '已发送！',
+    'couldNotSendRequest': '无法发送',
+    'deleteFriendConfirm': '删除好友？',
+    'deleteFriendConfirmMessage': '此人将从您的好友列表移除。',
+    'loadFailed': '加载失败',
+    'friendCountLabel': '1 位好友',
+    'friendsCountLabel': '{count} 位好友',
+    'addFriend': '添加',
+    'pending': '待处理',
+    'suggestMovie': '推荐电影或剧集',
+    'messageHint': '消息...',
+    'routeNotDefined': '未定义路由：',
+    'noTitle': '无标题',
+    'profileLabel': '资料',
+    'filterAll': '全部',
+    'filterOnline': '在线',
+    'filterPending': '待处理',
+    'myProfile': '我的资料',
+    'myFriendsCount': '好友',
+    'noPendingRequests': '暂无待处理请求',
+    'noFriendsFound': '暂无好友',
+    'acceptLabel': '接受',
+    'rejectLabel': '拒绝',
+    'userLabel': '用户',
   };
 
   static const Map<String, String> _enValues = {
@@ -1079,6 +1141,36 @@ class _AppStringsDelegate extends LocalizationsDelegate<AppStrings> {
     'hoursAgo': 'h ago',
     'daysAgo': 'd ago',
     'epgAutoApplied': 'Auto applied',
+    'chat': 'Chat',
+    'removeFriend': 'Remove friend',
+    'sendFriendRequest': 'Send friend request',
+    'noMessagesYet': 'No messages yet',
+    'viewFullProfile': 'View full profile',
+    'removeFromFavorites': 'Remove from favorites',
+    'requestSent': 'Request sent!',
+    'couldNotSendRequest': 'Could not send',
+    'deleteFriendConfirm': 'Remove friend?',
+    'deleteFriendConfirmMessage': 'This person will be removed from your friends. They will no longer see you as a friend.',
+    'loadFailed': 'Failed to load',
+    'friendCountLabel': '1 friend',
+    'friendsCountLabel': '{count} friends',
+    'addFriend': 'Add',
+    'pending': 'Pending',
+    'suggestMovie': 'Suggest movie or series',
+    'messageHint': 'Message...',
+    'routeNotDefined': 'No route defined for ',
+    'noTitle': 'No title',
+    'profileLabel': 'Profile',
+    'filterAll': 'All',
+    'filterOnline': 'Online',
+    'filterPending': 'Pending',
+    'myProfile': 'My profile',
+    'myFriendsCount': 'Friends',
+    'noPendingRequests': 'No pending requests',
+    'noFriendsFound': 'No friends found',
+    'acceptLabel': 'Accept',
+    'rejectLabel': 'Reject',
+    'userLabel': 'User',
   };
 
   static const Map<String, String> _ptBrOverrides = {
@@ -1456,6 +1548,36 @@ class _AppStringsDelegate extends LocalizationsDelegate<AppStrings> {
     'errorNetwork': 'Erro de rede',
     'usingCachedSource': 'Usando fonte em cache',
     'enableDlnaService': 'Habilitar Serviço DLNA',
+    'chat': 'Conversar',
+    'removeFriend': 'Excluir amigo',
+    'sendFriendRequest': 'Enviar solicitação de amizade',
+    'noMessagesYet': 'Nenhuma mensagem ainda',
+    'viewFullProfile': 'Ver perfil completo',
+    'removeFromFavorites': 'Remover dos favoritos',
+    'requestSent': 'Solicitação enviada!',
+    'couldNotSendRequest': 'Não foi possível enviar',
+    'deleteFriendConfirm': 'Excluir amigo?',
+    'deleteFriendConfirmMessage': 'Esta pessoa será removida da sua lista de amigos. Ela também deixará de ver você como amigo.',
+    'loadFailed': 'Falha ao carregar',
+    'friendCountLabel': '1 amigo',
+    'friendsCountLabel': '{count} amigos',
+    'addFriend': 'Adicionar',
+    'pending': 'Pendente(s)',
+    'suggestMovie': 'Indicar filme ou série',
+    'messageHint': 'Mensagem...',
+    'routeNotDefined': 'Rota não definida para ',
+    'noTitle': 'Sem título',
+    'profileLabel': 'Perfil',
+    'filterAll': 'TODOS',
+    'filterOnline': 'ONLINE',
+    'filterPending': 'PENDENTES',
+    'myProfile': 'MEU PERFIL',
+    'myFriendsCount': 'AMIGOS',
+    'noPendingRequests': 'Nenhum pedido pendente',
+    'noFriendsFound': 'Nenhum amigo encontrado',
+    'acceptLabel': 'Aceitar',
+    'rejectLabel': 'Rejeitar',
+    'userLabel': 'Usuário',
   };
 
   static Map<String, String> get _ptBrValues =>

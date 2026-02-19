@@ -5,8 +5,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/config/license_config.dart';
 import '../../../core/models/friend.dart';
 import '../../../core/services/admin_auth_service.dart';
-import '../../../core/services/friends_service.dart';
 import '../../../core/services/direct_message_service.dart';
+import '../../../core/services/friends_service.dart';
+import '../../../core/services/notification_service.dart';
+import '../../../core/services/user_profile_service.dart';
 
 /// Provider para gerenciar estado da lista de amigos.
 class FriendsProvider extends ChangeNotifier {
@@ -25,12 +27,62 @@ class FriendsProvider extends ChangeNotifier {
   bool _isSearching = false;
   int _unreadMessagesCount = 0;
   Map<String, int> _unreadBySender = {};
+  bool _pendingOpenFriendsPanel = false;
 
   RealtimeChannel? _realtimeChannel;
   Timer? _statusRefreshTimer;
 
   void _onIncomingMessageForBadge(DirectMessage msg) {
     _refreshUnreadCount();
+    _showNewMessageNotification(msg);
+  }
+
+  /// Solicita abertura do painel de amigos na próxima vez que a Home for exibida.
+  void requestOpenFriendsPanel() {
+    _pendingOpenFriendsPanel = true;
+    notifyListeners();
+  }
+
+  bool consumePendingOpenFriendsPanel() {
+    final v = _pendingOpenFriendsPanel;
+    _pendingOpenFriendsPanel = false;
+    return v;
+  }
+
+  void _tryShowNewFriendRequestNotification(dynamic payload) {
+    try {
+      final map = payload?.newRecord;
+      if (map == null) return;
+      final m = Map<String, dynamic>.from(map as Map);
+      final fromUserId = m['from_user_id']?.toString();
+      if (fromUserId == null || fromUserId.isEmpty) return;
+      final requestId = m['id']?.toString();
+      UserProfileService.instance.getProfile(fromUserId).then((p) {
+        NotificationService.instance.showNewFriendRequest(
+          fromDisplayName: p?.displayName ?? 'Alguém',
+          fromUserId: fromUserId,
+          avatarUrl: p?.avatarUrl,
+          requestId: requestId,
+        );
+      });
+    } catch (_) {}
+  }
+
+  void _showNewMessageNotification(DirectMessage msg) {
+    UserProfileService.instance.getProfile(msg.fromUserId).then((p) {
+      String? preview;
+      if (msg.recommendationPayload != null) {
+        preview = 'Indicou: ${msg.recommendationPayload!.name}';
+      } else if (msg.text.isNotEmpty) {
+        preview = msg.text.length > 50 ? '${msg.text.substring(0, 50)}...' : msg.text;
+      }
+      NotificationService.instance.showNewMessage(
+        fromDisplayName: p?.displayName ?? 'Alguém',
+        fromUserId: msg.fromUserId,
+        avatarUrl: p?.avatarUrl,
+        messagePreview: preview,
+      );
+    });
   }
 
   Future<void> _refreshUnreadCount() async {
@@ -39,10 +91,12 @@ class FriendsProvider extends ChangeNotifier {
   }
 
   /// Inicia inscrições Realtime (solicitações, lista de amigos, status/Assistindo) e atualização periódica.
+  /// Idempotente: se já subscrito, não cria canal duplicado.
   void startRealtimeSubscriptions() {
     if (!LicenseConfig.isConfigured) return;
     final userId = AdminAuthService.instance.currentUserId;
     if (userId == null || userId.isEmpty) return;
+    if (_realtimeChannel != null) return;
 
     try {
       final client = Supabase.instance.client;
@@ -57,8 +111,9 @@ class FriendsProvider extends ChangeNotifier {
           column: 'to_user_id',
           value: userId,
         ),
-        callback: (_) {
+        callback: (payload) {
           loadAll();
+          _tryShowNewFriendRequestNotification(payload);
         },
       )
           // Solicitação aceita/rejeitada/cancelada (removida)
@@ -128,7 +183,7 @@ class FriendsProvider extends ChangeNotifier {
               loadAll();
             },
           )
-          // Status online/offline e "Assistindo" dos usuários
+          // Status online/offline e "Assistindo" dos usuários (update/insert/delete para refletir fim de reprodução/offline)
           .onPostgresChanges(
             event: PostgresChangeEvent.update,
             schema: 'public',
@@ -145,18 +200,27 @@ class FriendsProvider extends ChangeNotifier {
               loadAll();
             },
           )
+          .onPostgresChanges(
+            event: PostgresChangeEvent.delete,
+            schema: 'public',
+            table: 'user_status',
+            callback: (_) {
+              loadAll();
+            },
+          )
           .subscribe();
     } catch (_) {}
 
     DirectMessageService.instance.addIncomingMessageListener(_onIncomingMessageForBadge);
+    DirectMessageService.instance.addUnreadChangeListener(_refreshUnreadCount);
 
     _statusRefreshTimer?.cancel();
-    _statusRefreshTimer = Timer.periodic(const Duration(seconds: 25), (_) {
+    _statusRefreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
       loadAll();
     });
   }
 
-  /// Para as inscrições Realtime e o timer. Chamar ao fechar o painel.
+  /// Para as inscrições Realtime e o timer. Chamar ao ir para background.
   Future<void> stopRealtimeSubscriptions() async {
     _statusRefreshTimer?.cancel();
     _statusRefreshTimer = null;
@@ -165,6 +229,7 @@ class FriendsProvider extends ChangeNotifier {
       _realtimeChannel = null;
     }
     DirectMessageService.instance.removeIncomingMessageListener(_onIncomingMessageForBadge);
+    DirectMessageService.instance.removeUnreadChangeListener(_refreshUnreadCount);
   }
 
   List<Friend> get friends => _friends;
@@ -306,11 +371,13 @@ class FriendsProvider extends ChangeNotifier {
   }
 
   /// Texto do status. Só mostra "Online" quando isOnline(f) é true (evita "Online" sem bolinha).
+  /// "Assistindo" só aparece se isWatching(f) for true (evita mostrar assistindo quando status está desatualizado).
   String getStatusLabel(Friend f) {
-    if (f.playingContent != null && f.playingContent!.isNotEmpty) {
+    if (isWatching(f)) {
       return 'Assistindo: ${f.playingContent}';
     }
-    if (f.status == FriendStatus.playing && f.playingGame != null) {
+    // Reservado para quando user_status tiver playing_game (ex.: jogos integrados)
+    if (f.status == FriendStatus.playing && f.playingGame != null && f.playingGame!.isNotEmpty) {
       return 'Jogando: ${f.playingGame}';
     }
     if (f.status == FriendStatus.busy) return 'Ocupado';
@@ -327,7 +394,7 @@ class FriendsProvider extends ChangeNotifier {
   /// Online no app (navegando ou assistindo). Considera lastSeenAt nos últimos 5 min.
   bool isOnline(Friend f) {
     if (f.status == FriendStatus.offline || f.status == FriendStatus.busy) return false;
-    if (f.playingContent != null && f.playingContent!.isNotEmpty) return true;
+    if (isWatching(f)) return true;
     if (f.status == FriendStatus.playing) return true;
     if (f.status == FriendStatus.online) {
       if (f.lastSeenAt != null && DateTime.now().difference(f.lastSeenAt!).inMinutes >= 5) return false;
@@ -336,10 +403,12 @@ class FriendsProvider extends ChangeNotifier {
     return false;
   }
 
-  /// Verdadeiro quando está assistindo filme/série/TV (playing_content preenchido).
-  /// Usado para mostrar bolinha laranja em vez de verde.
+  /// Verdadeiro quando está assistindo filme/série/TV (playing_content preenchido e atualizado recentemente).
+  /// Se lastSeenAt for > 2 min, considera desatualizado (app fechou sem limpar) e não mostra bolinha laranja.
   bool isWatching(Friend f) {
-    return f.playingContent != null && f.playingContent!.isNotEmpty;
+    if (f.playingContent == null || f.playingContent!.isEmpty) return false;
+    if (f.lastSeenAt == null) return true;
+    return DateTime.now().difference(f.lastSeenAt!).inMinutes < 2;
   }
 
   /// No app mas não assistindo (navegando, catálogos). Só esses mostram bolinha verde.

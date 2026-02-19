@@ -6,6 +6,7 @@ import 'package:media_kit/media_kit.dart';
 import 'package:window_manager/window_manager.dart';
 import 'core/i18n/app_strings.dart';
 
+import 'dart:async';
 import 'dart:io';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -29,6 +30,7 @@ import 'package:flutter_iptv/features/profile/providers/inventory_provider.dart'
 import 'package:flutter_iptv/features/profile/providers/theme_provider.dart';
 import 'package:flutter_iptv/features/friends/providers/friends_provider.dart';
 import 'package:flutter_iptv/features/rank/providers/rank_provider.dart';
+import 'core/widgets/notification_banner.dart';
 import 'core/widgets/window_title_bar.dart';
 import 'core/config/license_config.dart';
 import 'core/services/admin_auth_service.dart';
@@ -111,8 +113,7 @@ void main() async {
     // Initialize PlatformDetector for settings page
     await PlatformDetector.init();
 
-    // 初始屏幕方向将在 MaterialApp 构建后根据设置应用
-    // 这里先允许所有方向，避免启动时的限制
+    // Orientação da tela será aplicada após o MaterialApp conforme configurações
     await SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
       DeviceOrientation.landscapeLeft,
@@ -210,7 +211,7 @@ class _FlutterIPTVAppState extends State<FlutterIPTVApp> {
   }
 }
 
-/// 包装 MaterialApp，监听 DLNA 播放请求和管理自动刷新服务
+/// Envolve o MaterialApp, escuta pedidos de reprodução DLNA e gerencia o serviço de atualização automática.
 class _DlnaAwareApp extends StatefulWidget {
   final SettingsProvider settings;
 
@@ -222,12 +223,12 @@ class _DlnaAwareApp extends StatefulWidget {
 
 class _DlnaAwareAppState extends State<_DlnaAwareApp> with WindowListener, WidgetsBindingObserver {
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
-  String? _currentDlnaUrl; // 记录当前 DLNA 播放的 URL
+  String? _currentDlnaUrl;
 
-  // 自动刷新服务
   final AutoRefreshService _autoRefreshService = AutoRefreshService();
   bool _lastAutoRefreshState = false;
   int _lastRefreshInterval = 24;
+  Timer? _presenceHeartbeat;
 
   @override
   void initState() {
@@ -239,20 +240,16 @@ class _DlnaAwareAppState extends State<_DlnaAwareApp> with WindowListener, Widge
     if (Platform.isWindows) {
       windowManager.addListener(this);
     }
-    // 立即触发 DlnaProvider 的创建（会自动启动 DLNA 服务）
-    // 使用 addPostFrameCallback 确保 context 可用
+    // Garante criação do DlnaProvider (inicia o serviço DLNA)
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ServiceLocator.log.d('addPostFrameCallback 触发', tag: 'DLNA');
       _setupDlnaCallbacks();
-      // 初始化自动刷新服务
-      ServiceLocator.log.d('addPostFrameCallback 执行', tag: 'AutoRefresh');
       _initAutoRefresh();
-      // 应用屏幕方向设置
       _applyOrientationSettings();
+      _startPresenceAndRealtime();
     });
   }
 
-  /// 应用屏幕方向设置
+  /// Aplica a orientação da tela conforme as configurações.
   Future<void> _applyOrientationSettings() async {
     if (!PlatformDetector.isMobile) return;
 
@@ -288,6 +285,7 @@ class _DlnaAwareAppState extends State<_DlnaAwareApp> with WindowListener, Widge
 
   @override
   void dispose() {
+    _stopPresenceAndRealtime();
     WidgetsBinding.instance.removeObserver(this);
     if (Platform.isWindows) {
       windowManager.removeListener(this);
@@ -296,20 +294,41 @@ class _DlnaAwareAppState extends State<_DlnaAwareApp> with WindowListener, Widge
     super.dispose();
   }
 
+  void _startPresenceAndRealtime() {
+    if (!LicenseConfig.isConfigured || AdminAuthService.instance.currentUserId == null) return;
+    FriendsService.instance.setUserStatus('online');
+    try {
+      context.read<FriendsProvider>().startRealtimeSubscriptions();
+    } catch (_) {}
+    _presenceHeartbeat?.cancel();
+    _presenceHeartbeat = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (LicenseConfig.isConfigured) FriendsService.instance.setUserStatus('online');
+    });
+  }
+
+  void _stopPresenceAndRealtime() {
+    _presenceHeartbeat?.cancel();
+    _presenceHeartbeat = null;
+    if (LicenseConfig.isConfigured) FriendsService.instance.setUserStatus('offline');
+    try {
+      context.read<FriendsProvider>().stopRealtimeSubscriptions();
+    } catch (_) {}
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
     if (!LicenseConfig.isConfigured) return;
     if (state == AppLifecycleState.resumed) {
       UserActivityService.instance.ping();
-      FriendsService.instance.setUserStatus('online');
+      _startPresenceAndRealtime();
       if (AdminAuthService.instance.currentUserId != null && mounted) {
         try {
           context.read<ProfileProvider>().loadProfile();
         } catch (_) {}
       }
     } else if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden) {
-      FriendsService.instance.setUserStatus('offline');
+      _stopPresenceAndRealtime();
     }
   }
 
@@ -635,18 +654,20 @@ class _DlnaAwareAppState extends State<_DlnaAwareApp> with WindowListener, Widge
           onGenerateRoute: AppRouter.generateRoute,
           initialRoute: AppRouter.launcher,
           builder: (context, child) {
-            return MediaQuery(
-              data: MediaQuery.of(context).copyWith(
-                textScaler: const TextScaler.linear(1.0),
+            return NotificationBannerOverlay(
+              child: MediaQuery(
+                data: MediaQuery.of(context).copyWith(
+                  textScaler: const TextScaler.linear(1.0),
+                ),
+                child: Platform.isWindows
+                    ? Stack(
+                        children: [
+                          child!,
+                          const WindowTitleBar(),
+                        ],
+                      )
+                    : child!,
               ),
-              child: Platform.isWindows
-                  ? Stack(
-                      children: [
-                        child!,
-                        const WindowTitleBar(),
-                      ],
-                    )
-                  : child!,
             );
           },
         );

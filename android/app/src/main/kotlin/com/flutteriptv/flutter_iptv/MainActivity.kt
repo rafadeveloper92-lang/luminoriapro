@@ -847,12 +847,21 @@ class MainActivity: FlutterFragmentActivity() {
     
     /**
      * Install APK file using FileProvider
+     * Permite substituir instalação existente para evitar conflitos
      */
     private fun installApk(filePath: String) {
         Log.d(TAG, "Installing APK: $filePath")
         val file = File(filePath)
         if (!file.exists()) {
             throw Exception("APK file not found: $filePath")
+        }
+        
+        // Verifica permissão de instalação no Android 8.0+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (!packageManager.canRequestPackageInstalls()) {
+                Log.e(TAG, "REQUEST_INSTALL_PACKAGES permission not granted")
+                throw Exception("Permissão de instalação não concedida. Por favor, habilite nas configurações do app.")
+            }
         }
         
         val intent = Intent(Intent.ACTION_VIEW)
@@ -867,11 +876,32 @@ class MainActivity: FlutterFragmentActivity() {
             )
             intent.setDataAndType(uri, "application/vnd.android.package-archive")
             intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            // Flag adicional para garantir que pode ler o arquivo
+            intent.addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
         } else {
             // Older versions use file:// URI
             intent.setDataAndType(Uri.fromFile(file), "application/vnd.android.package-archive")
         }
         
-        startActivity(intent)
+        // Tenta iniciar a instalação
+        try {
+            startActivity(intent)
+            Log.d(TAG, "APK installation intent started successfully")
+        } catch (e: android.content.ActivityNotFoundException) {
+            Log.e(TAG, "No app found to handle installation", e)
+            throw Exception("Nenhum aplicativo encontrado para instalar o APK. Verifique se as fontes desconhecidas estão habilitadas.")
+        } catch (e: SecurityException) {
+            Log.e(TAG, "Security exception during installation", e)
+            throw Exception("Erro de segurança ao instalar. Verifique as permissões do app.")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to start installation intent", e)
+            val errorMsg = e.message ?: "Erro desconhecido"
+            // Verifica se é erro de conflito conhecido
+            if (errorMsg.contains("INSTALL_FAILED_UPDATE_INCOMPATIBLE") || 
+                errorMsg.contains("INSTALL_FAILED_ALREADY_EXISTS")) {
+                throw Exception("Conflito de instalação: já existe uma versão instalada com assinatura diferente. Desinstale a versão antiga manualmente.")
+            }
+            throw Exception("Não foi possível iniciar a instalação: $errorMsg")
+        }
     }
 }

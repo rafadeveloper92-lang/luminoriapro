@@ -103,12 +103,16 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
 
   @override
   void dispose() {
-    if (widget.userId == null) {
-      try {
-        context.read<ThemeProvider>().pauseMusic();
+    try {
+      context.read<ThemeProvider>().pauseMusic();
+      if (widget.userId == null) {
         context.read<ProfileProvider>().stopRealtimeSubscription();
-      } catch (_) {}
-    }
+      } else {
+        // Saiu do perfil do amigo: restaura o tema do usuário logado (sem tocar música)
+        final myKey = context.read<ProfileProvider>().profile?.equippedThemeKey;
+        context.read<ThemeProvider>().loadEquippedThemeOnly(myKey);
+      }
+    } catch (_) {}
     AppRouter.routeObserver.unsubscribe(this);
     super.dispose();
   }
@@ -129,10 +133,8 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
 
   @override
   void didPushNext() {
-    // Pausar música quando sair da tela de perfil
-    if (widget.userId == null) {
-      context.read<ThemeProvider>().pauseMusic();
-    }
+    // Pausar música ao sair da tela de perfil (próprio ou de amigo)
+    context.read<ThemeProvider>().pauseMusic();
   }
 
   void _refreshHistory() async {
@@ -164,7 +166,7 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
             _isLoadingOther = false;
           });
           if (p != null && p.equippedThemeKey != null) {
-            context.read<ThemeProvider>().loadEquippedTheme(p.equippedThemeKey);
+            context.read<ThemeProvider>().loadEquippedTheme(p.equippedThemeKey, forProfileOwnerUserId: otherId);
           }
         }
       } catch (e) {
@@ -198,7 +200,13 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
               elevation: 0,
               leading: IconButton(
                 icon: const Icon(Icons.arrow_back, color: Colors.white),
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed: () {
+                  // Para música e restaura tema do usuário logado antes de voltar
+                  context.read<ThemeProvider>().pauseMusic();
+                  final myKey = context.read<ProfileProvider>().profile?.equippedThemeKey;
+                  context.read<ThemeProvider>().loadEquippedThemeOnly(myKey);
+                  Navigator.of(context).pop();
+                },
               ),
             )
           : AppBar(
@@ -241,7 +249,8 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
           final favCount = isMe
               ? (favorites.count + favorites.vodCount)
               : ((displayProfile?.favChannelsCount ?? 0) + (displayProfile?.favVodCount ?? 0));
-          final friendCount = isMe ? friendsProv.totalFriendsCount : (_otherFriendCount ?? 0);
+          final friendCount = isMe ? friendsProv.totalFriendsCount : _otherFriendCount;
+          final friendCountDisplay = friendCount != null ? '$friendCount' : '—';
 
           final currentRank = getRankForXp(xp);
           final nextRank = kProfileRanks.indexOf(currentRank) < kProfileRanks.length - 1
@@ -253,10 +262,9 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
           final levelLabel = rankLabelForXp(xp);
           final equippedBorderKey = displayProfile?.equippedBorderKey ?? (isMe ? myProfileProv.equippedBorderKey : null);
 
-          // Obter tema se estiver equipado
-          final themeProvider = isMe ? context.watch<ThemeProvider>() : null;
-          final currentTheme = themeProvider?.currentTheme;
-          
+          // Obter tema (próprio ou do amigo já carregado em _initProfile) para capa e decoração
+          final themeProvider = context.watch<ThemeProvider>();
+          final currentTheme = themeProvider.currentTheme;
           // Usar capa do tema se disponível, senão usar capa do perfil
           final effectiveCoverUrl = (currentTheme?.coverImageUrl != null && currentTheme!.coverImageUrl!.isNotEmpty)
               ? currentTheme.coverImageUrl
@@ -467,7 +475,7 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Row(
                     children: [
-                      _statCard(context, Icons.people_rounded, 'AMIGOS', '$friendCount'), 
+                      _statCard(context, Icons.people_rounded, 'AMIGOS', isMe ? '$friendCount' : friendCountDisplay), 
                       const SizedBox(width: 8),
                       _statCard(context, Icons.history_rounded, 'VISTOS', '${_vodHistory?.length ?? 0}'),
                       const SizedBox(width: 8),
@@ -579,7 +587,7 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
                           ),
                         )
                       else
-                        ..._vodHistory!.take(10).map((item) => _buildTimelineEntry(context, item)),
+                        ..._vodHistory!.take(10).map((item) => _buildTimelineEntry(context, item, isMe: isMe, displayName: displayName)),
                     ],
                   ),
                 ),
@@ -790,7 +798,8 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
     return 'Agora';
   }
 
-  Widget _buildTimelineEntry(BuildContext context, VodWatchHistoryItem item, {bool showLine = true}) {
+  Widget _buildTimelineEntry(BuildContext context, VodWatchHistoryItem item, {bool showLine = true, bool isMe = true, String displayName = ''}) {
+    final timelineLabel = isMe ? 'VOCÊ ASSISTIU' : (displayName.isNotEmpty ? '${displayName.toUpperCase()} ASSISTIU' : 'ASSISTIU');
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Row(
@@ -828,7 +837,7 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'VOCÊ ASSISTIU',
+                  timelineLabel,
                   style: TextStyle(color: Colors.grey.shade500, fontSize: 11),
                 ),
                 const SizedBox(height: 2),

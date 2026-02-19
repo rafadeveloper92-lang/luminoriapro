@@ -28,6 +28,7 @@ import '../../profile/screens/profile_screen.dart';
 import '../../profile/providers/profile_provider.dart';
 import '../../profile/providers/theme_provider.dart';
 import '../../shop/screens/shop_screen.dart';
+import '../../friends/providers/friends_provider.dart';
 import '../../friends/widgets/friends_panel.dart';
 import '../../rank/widgets/global_rank_panel.dart';
 import '../../vod/screens/series_catalog_screen.dart';
@@ -80,6 +81,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
       context.read<PlaylistProvider>().addListener(_onPlaylistProviderChanged);
       context.read<FavoritesProvider>().addListener(_onFavoritesProviderChanged);
       _loadData();
+      _checkPendingOpenFriendsPanel();
     });
   }
 
@@ -97,6 +99,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
   void didPopNext() {
     super.didPopNext();
     _refreshWatchHistory();
+    _checkPendingOpenFriendsPanel();
+  }
+
+  void _checkPendingOpenFriendsPanel() {
+    if (!mounted) return;
+    try {
+      final fp = context.read<FriendsProvider>();
+      if (fp.consumePendingOpenFriendsPanel()) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _showFriendsPanel(context);
+        });
+      }
+    } catch (_) {}
   }
 
   @override

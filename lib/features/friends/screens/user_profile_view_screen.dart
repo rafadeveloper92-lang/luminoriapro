@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/i18n/app_strings.dart';
 import '../../../core/navigation/app_router.dart';
 import '../../../core/services/user_profile_service.dart';
+import '../../../core/services/friends_service.dart';
 import '../../../core/models/user_profile.dart';
 import '../../profile/profile_ranks.dart';
 import '../providers/friends_provider.dart';
@@ -36,8 +38,9 @@ class UserProfileViewScreen extends StatefulWidget {
 
 class _UserProfileViewScreenState extends State<UserProfileViewScreen> {
   UserProfile? _profile;
+  int? _friendCount;
   bool _loading = true;
-  // Removido erro explícito para permitir fallback visual
+  bool _loadError = false;
 
   @override
   void initState() {
@@ -48,20 +51,24 @@ class _UserProfileViewScreenState extends State<UserProfileViewScreen> {
   Future<void> _loadProfile() async {
     setState(() {
       _loading = true;
+      _loadError = false;
+      _friendCount = null;
     });
     try {
       final p = await UserProfileService.instance.getProfile(widget.userId);
+      final count = await FriendsService.instance.getFriendCountForUser(widget.userId);
       if (mounted) {
         setState(() {
           _profile = p;
+          _friendCount = count; // null em erro (não exibimos contagem)
           _loading = false;
         });
       }
     } catch (e) {
-      // Se falhar, apenas paramos de carregar. O build usará os dados básicos (widget.displayName).
       if (mounted) {
         setState(() {
           _loading = false;
+          _loadError = true;
         });
       }
     }
@@ -72,7 +79,7 @@ class _UserProfileViewScreenState extends State<UserProfileViewScreen> {
     final primary = AppTheme.getPrimaryColor(context);
     final displayName = _profile?.displayName?.trim().isNotEmpty == true
         ? _profile!.displayName!
-        : (widget.displayName ?? 'Usuário');
+        : (widget.displayName ?? (AppStrings.of(context)?.userLabel ?? 'Usuário'));
     final avatarUrl = _profile?.avatarUrl ?? widget.avatarUrl;
     final level = _profile != null ? levelFromXp(_profile!.xp) : 1;
     final xp = _profile?.xp ?? 0;
@@ -86,11 +93,33 @@ class _UserProfileViewScreenState extends State<UserProfileViewScreen> {
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text('Perfil', style: TextStyle(color: Colors.white, fontSize: 18)),
+        title: Text(AppStrings.of(context)?.profileLabel ?? 'Perfil', style: const TextStyle(color: Colors.white, fontSize: 18)),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: Color(0xFFE50914)))
-          : SingleChildScrollView(
+          : _loadError
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          AppStrings.of(context)?.loadFailed ?? 'Falha ao carregar',
+                          style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 16),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        TextButton.icon(
+                          onPressed: _loadProfile,
+                          icon: const Icon(Icons.refresh, color: Colors.white70),
+                          label: Text(AppStrings.of(context)?.retry ?? 'Tentar novamente', style: const TextStyle(color: Colors.white70)),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : SingleChildScrollView(
               padding: const EdgeInsets.all(24),
               child: Column(
                 children: [
@@ -118,6 +147,13 @@ class _UserProfileViewScreenState extends State<UserProfileViewScreen> {
                     'Nível $level • $xp XP',
                     style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 14),
                   ),
+                  if (_friendCount != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      _friendCount == 1 ? (AppStrings.of(context)?.friendCountLabel ?? '1 amigo') : (AppStrings.of(context)?.friendsCountLabel ?? '{count} amigos').replaceAll('{count}', '$_friendCount'),
+                      style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 13),
+                    ),
+                  ],
                   if (_profile?.bio != null && _profile!.bio!.trim().isNotEmpty) ...[
                     const SizedBox(height: 16),
                     Text(
@@ -129,14 +165,14 @@ class _UserProfileViewScreenState extends State<UserProfileViewScreen> {
                   const SizedBox(height: 32),
                   if (widget.isFriend) ...[
                     _ActionButton(
-                      label: 'Conversar',
+                      label: AppStrings.of(context)?.chat ?? 'Conversar',
                       icon: Icons.chat_bubble_outline,
                       primary: primary,
                       onPressed: () => _openChat(context),
                     ),
                     const SizedBox(height: 12),
                     _ActionButton(
-                      label: 'Excluir amigo',
+                      label: AppStrings.of(context)?.removeFriend ?? 'Excluir amigo',
                       icon: Icons.person_remove,
                       primary: primary,
                       isDestructive: true,
@@ -147,7 +183,7 @@ class _UserProfileViewScreenState extends State<UserProfileViewScreen> {
                       children: [
                         Expanded(
                           child: _ActionButton(
-                            label: 'Aceitar',
+                            label: AppStrings.of(context)?.acceptLabel ?? 'Aceitar',
                             icon: Icons.check,
                             primary: primary,
                             onPressed: () => _acceptRequest(context),
@@ -156,7 +192,7 @@ class _UserProfileViewScreenState extends State<UserProfileViewScreen> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: _ActionButton(
-                            label: 'Rejeitar',
+                            label: AppStrings.of(context)?.rejectLabel ?? 'Rejeitar',
                             icon: Icons.close,
                             primary: primary,
                             isDestructive: true,
@@ -167,7 +203,7 @@ class _UserProfileViewScreenState extends State<UserProfileViewScreen> {
                     ),
                   ] else ...[
                     _ActionButton(
-                      label: 'Enviar solicitação de amizade',
+                      label: AppStrings.of(context)?.sendFriendRequest ?? 'Enviar solicitação de amizade',
                       icon: Icons.person_add,
                       primary: primary,
                       onPressed: () => _sendFriendRequest(context),
@@ -196,19 +232,19 @@ class _UserProfileViewScreenState extends State<UserProfileViewScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF1A1A1A),
-        title: const Text('Excluir amigo?', style: TextStyle(color: Colors.white)),
-        content: const Text(
-          'Esta pessoa será removida da sua lista de amigos. Ela também deixará de ver você como amigo.',
-          style: TextStyle(color: Colors.white70),
+        title: Text(AppStrings.of(context)?.deleteFriendConfirm ?? 'Excluir amigo?', style: const TextStyle(color: Colors.white)),
+        content: Text(
+          AppStrings.of(context)?.deleteFriendConfirmMessage ?? 'Esta pessoa será removida da sua lista de amigos. Ela também deixará de ver você como amigo.',
+          style: const TextStyle(color: Colors.white70),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar', style: TextStyle(color: Colors.white70)),
+            child: Text(AppStrings.of(context)?.cancel ?? 'Cancelar', style: const TextStyle(color: Colors.white70)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Excluir', style: TextStyle(color: Colors.red)),
+            child: Text(AppStrings.of(context)?.delete ?? 'Excluir', style: const TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -224,7 +260,7 @@ class _UserProfileViewScreenState extends State<UserProfileViewScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(ok ? 'Solicitação enviada!' : 'Não foi possível enviar. Talvez já tenha sido enviada.'),
+        content: Text(ok ? (AppStrings.of(context)?.requestSent ?? 'Solicitação enviada!') : (AppStrings.of(context)?.couldNotSendRequest ?? 'Não foi possível enviar. Talvez já tenha sido enviada.')),
         backgroundColor: ok ? Colors.green : Colors.orange,
       ),
     );

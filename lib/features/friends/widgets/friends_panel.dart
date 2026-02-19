@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/i18n/app_strings.dart';
 import '../../../core/models/friend.dart';
 import '../../../core/navigation/app_router.dart';
 import '../../../core/services/friends_service.dart';
@@ -25,15 +26,12 @@ class _FriendsPanelState extends State<FriendsPanel> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final prov = context.read<FriendsProvider>();
-      prov.loadAll();
-      prov.startRealtimeSubscriptions();
+      context.read<FriendsProvider>().loadAll();
     });
   }
 
   @override
   void dispose() {
-    context.read<FriendsProvider>().stopRealtimeSubscriptions();
     _searchController.dispose();
     super.dispose();
   }
@@ -126,9 +124,9 @@ class _FriendsPanelState extends State<FriendsPanel> {
                   ),
                 ),
                 const SizedBox(width: 2),
-                const Text(
-                  'pendente(s)',
-                  style: TextStyle(color: Colors.white70, fontSize: 11),
+                Text(
+                  AppStrings.of(context)?.pending ?? 'pendente(s)',
+                  style: const TextStyle(color: Colors.white70, fontSize: 11),
                 ),
               ],
               if (unread > 0) ...[
@@ -188,21 +186,21 @@ class _FriendsPanelState extends State<FriendsPanel> {
           child: Row(
             children: [
               _FilterTab(
-                label: 'TODOS',
+                label: AppStrings.of(context)?.filterAll ?? 'TODOS',
                 isSelected: prov.filter == FriendsFilter.all,
                 onTap: () => prov.setFilter(FriendsFilter.all),
                 primary: primary,
               ),
               const SizedBox(width: 12),
               _FilterTab(
-                label: 'ONLINE',
+                label: AppStrings.of(context)?.filterOnline ?? 'ONLINE',
                 isSelected: prov.filter == FriendsFilter.online,
                 onTap: () => prov.setFilter(FriendsFilter.online),
                 primary: primary,
               ),
               const SizedBox(width: 12),
               _FilterTab(
-                label: 'PENDENTES',
+                label: AppStrings.of(context)?.filterPending ?? 'PENDENTES',
                 isSelected: prov.filter == FriendsFilter.pending,
                 onTap: () => prov.setFilter(FriendsFilter.pending),
                 primary: primary,
@@ -250,7 +248,7 @@ class _FriendsPanelState extends State<FriendsPanel> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          prov.filter == FriendsFilter.pending ? 'PENDENTES' : 'MEUS AMIGOS (${prov.totalFriendsCount})',
+          prov.filter == FriendsFilter.pending ? (AppStrings.of(context)?.filterPending ?? 'PENDENTES') : '${AppStrings.of(context)?.myFriendsCount ?? 'AMIGOS'} (${prov.totalFriendsCount})',
           style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 12),
@@ -258,7 +256,7 @@ class _FriendsPanelState extends State<FriendsPanel> {
           Padding(
             padding: const EdgeInsets.all(16),
             child: Text(
-              prov.filter == FriendsFilter.pending ? 'Nenhum pedido pendente' : 'Nenhum amigo encontrado',
+              prov.filter == FriendsFilter.pending ? (AppStrings.of(context)?.noPendingRequests ?? 'Nenhum pedido pendente') : (AppStrings.of(context)?.noFriendsFound ?? 'Nenhum amigo encontrado'),
               style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 14),
             ),
           )
@@ -344,9 +342,9 @@ class _FriendsPanelState extends State<FriendsPanel> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text(
-                      'MEU PERFIL',
-                      style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                    Text(
+                      AppStrings.of(context)?.myProfile ?? 'MEU PERFIL',
+                      style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 4),
                     if (prov.playingContent != null && prov.playingContent!.isNotEmpty)
@@ -522,7 +520,7 @@ class _FavoriteAvatar extends StatelessWidget {
             const Divider(color: Colors.white10),
             ListTile(
               leading: Icon(Icons.chat_bubble_outline, color: primary),
-              title: const Text('Conversar', style: TextStyle(color: Colors.white)),
+              title: Text(AppStrings.of(context)?.chat ?? 'Conversar', style: const TextStyle(color: Colors.white)),
               onTap: () {
                 Navigator.pop(ctx);
                 final peerId = friend.peerUserId ?? friend.id;
@@ -538,20 +536,19 @@ class _FavoriteAvatar extends StatelessWidget {
             ),
             ListTile(
               leading: Icon(Icons.person_outline, color: primary),
-              title: const Text('Ver perfil completo', style: TextStyle(color: Colors.white)),
+              title: Text(AppStrings.of(context)?.viewFullProfile ?? 'Ver perfil completo', style: const TextStyle(color: Colors.white)),
               onTap: () {
                 Navigator.pop(ctx);
                 final peerId = friend.peerUserId ?? friend.id;
-                // Usando a rota principal de Perfil para ver Timeline
                 Navigator.of(context).pushNamed(
                   AppRouter.profile,
-                  arguments: {'userId': peerId}, 
+                  arguments: {'userId': peerId},
                 );
               },
             ),
             ListTile(
               leading: const Icon(Icons.star_border, color: Colors.amber),
-              title: const Text('Remover dos favoritos', style: TextStyle(color: Colors.white)),
+              title: Text(AppStrings.of(context)?.removeFromFavorites ?? 'Remover dos favoritos', style: const TextStyle(color: Colors.white)),
               onTap: () {
                 Navigator.pop(ctx);
                 context.read<FriendsProvider>().toggleFavorite(friend.id);
@@ -1275,7 +1272,7 @@ class _SuggestionCardState extends State<_SuggestionCard> {
             ),
             child: _loading 
               ? const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-              : Text(_sent ? 'ENVIADO' : 'ADICIONAR', 
+              : Text(_sent ? 'ENVIADO' : (AppStrings.of(context)?.addFriend ?? 'ADICIONAR').toUpperCase(), 
                   style: TextStyle(
                     color: _sent ? Colors.green : Colors.white, 
                     fontSize: 11, 

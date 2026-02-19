@@ -21,8 +21,9 @@ class ThemeProvider extends ChangeNotifier {
   String? get error => _error;
   bool get isMusicPlaying => _musicService.isPlaying;
 
-  /// Carrega o tema equipado do perfil do usuário
-  Future<void> loadEquippedTheme(String? themeKey) async {
+  /// Carrega o tema equipado. [forProfileOwnerUserId] quando estamos vendo perfil de outro usuário:
+  /// a decisão de tocar música usa a preferência do dono do perfil, não do visitante.
+  Future<void> loadEquippedTheme(String? themeKey, {String? forProfileOwnerUserId}) async {
     if (themeKey == null || themeKey.isEmpty) {
       _currentTheme = null;
       await _musicService.stop();
@@ -37,11 +38,10 @@ class ThemeProvider extends ChangeNotifier {
     try {
       final theme = await _themeService.getThemeByKey(themeKey);
       _currentTheme = theme;
-      
-      // Inicia música de fundo se tema tem música e está habilitada
-      final userId = AdminAuthService.instance.currentUserId;
-      if (userId != null && theme != null) {
-        final profile = await _profileService.getProfile(userId);
+      // Quem decide se a música toca: dono do perfil (ao visitar amigo) ou usuário logado (próprio perfil)
+      final userIdForMusic = forProfileOwnerUserId ?? AdminAuthService.instance.currentUserId;
+      if (userIdForMusic != null && theme != null) {
+        final profile = await _profileService.getProfile(userIdForMusic);
         if (profile != null && profile.themeMusicEnabled && theme.backgroundMusicUrl != null && theme.backgroundMusicUrl!.isNotEmpty) {
           _musicService.setEnabled(true);
           await _musicService.playThemeMusic(theme.backgroundMusicUrl);
@@ -110,6 +110,24 @@ class ThemeProvider extends ChangeNotifier {
       notifyListeners();
       return false;
     }
+  }
+
+  /// Carrega apenas o tema (para restaurar estado ao sair do perfil de outro usuário). Não inicia música.
+  Future<void> loadEquippedThemeOnly(String? themeKey) async {
+    if (themeKey == null || themeKey.isEmpty) {
+      _currentTheme = null;
+      await _musicService.stop();
+      notifyListeners();
+      return;
+    }
+    try {
+      final theme = await _themeService.getThemeByKey(themeKey);
+      _currentTheme = theme;
+      await _musicService.stop();
+    } catch (_) {
+      _currentTheme = null;
+    }
+    notifyListeners();
   }
 
   /// Para música de imediato quando sair da tela de perfil (só toca no perfil).

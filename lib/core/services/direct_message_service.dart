@@ -106,6 +106,7 @@ class DirectMessageService {
   static const String _table = 'direct_messages';
 
   final List<void Function(DirectMessage)> _incomingMessageListeners = [];
+  final List<void Function()> _unreadChangeListeners = [];
   RealtimeChannel? _realtimeChannel;
 
   /// Regista um listener para mensagens recebidas (Realtime). Usado pela ChatScreen.
@@ -117,7 +118,22 @@ class DirectMessageService {
   /// Remove o listener. Chamar em dispose da ChatScreen.
   void removeIncomingMessageListener(void Function(DirectMessage) cb) {
     _incomingMessageListeners.remove(cb);
-    if (_incomingMessageListeners.isEmpty) _disposeRealtimeSubscription();
+    if (_incomingMessageListeners.isEmpty && _unreadChangeListeners.isEmpty) _disposeRealtimeSubscription();
+  }
+
+  /// Listener para mudanças em mensagens que afetam contagem de não lidas (ex.: read_at).
+  void addUnreadChangeListener(void Function() cb) {
+    _unreadChangeListeners.add(cb);
+    _ensureRealtimeSubscription();
+  }
+
+  void removeUnreadChangeListener(void Function() cb) {
+    _unreadChangeListeners.remove(cb);
+    if (_incomingMessageListeners.isEmpty && _unreadChangeListeners.isEmpty) _disposeRealtimeSubscription();
+  }
+
+  void _notifyUnreadChanged() {
+    for (final cb in List<void Function()>.from(_unreadChangeListeners)) cb();
   }
 
   void _ensureRealtimeSubscription() {
@@ -126,27 +142,31 @@ class DirectMessageService {
     if (client == null || userId == null || userId.isEmpty || _realtimeChannel != null) return;
 
     _realtimeChannel = client.channel('direct_messages_$userId');
-    _realtimeChannel!.onPostgresChanges(
-      event: PostgresChangeEvent.insert,
-      schema: 'public',
-      table: _table,
-      filter: PostgresChangeFilter(
-        type: PostgresChangeFilterType.eq,
-        column: 'to_user_id',
-        value: userId,
-      ),
-      callback: (payload) {
-        try {
-          final map = Map<String, dynamic>.from(payload.newRecord);
-          final msg = DirectMessage.fromMap(map);
-          for (final cb in List<void Function(DirectMessage)>.from(_incomingMessageListeners)) {
-            cb(msg);
-          }
-        } catch (e) {
-          ServiceLocator.log.e('DirectMessageService Realtime parse', tag: 'Chat', error: e);
-        }
-      },
-    ).subscribe();
+    _realtimeChannel!
+        .onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: _table,
+          filter: PostgresChangeFilter(type: PostgresChangeFilterType.eq, column: 'to_user_id', value: userId),
+          callback: (payload) {
+            try {
+              final map = Map<String, dynamic>.from(payload.newRecord);
+              final msg = DirectMessage.fromMap(map);
+              for (final cb in List<void Function(DirectMessage)>.from(_incomingMessageListeners)) cb(msg);
+              _notifyUnreadChanged();
+            } catch (e) {
+              ServiceLocator.log.e('DirectMessageService Realtime parse', tag: 'Chat', error: e);
+            }
+          },
+        )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: _table,
+          filter: PostgresChangeFilter(type: PostgresChangeFilterType.eq, column: 'to_user_id', value: userId),
+          callback: (_) => _notifyUnreadChanged(),
+        )
+        .subscribe();
   }
 
   void _disposeRealtimeSubscription() async {

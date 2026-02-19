@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/i18n/app_strings.dart';
 import '../../../core/models/xtream_models.dart';
 import '../../../core/services/direct_message_service.dart';
 import '../../../core/services/admin_auth_service.dart';
@@ -192,7 +193,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 : _messages.isEmpty
                     ? Center(
                         child: Text(
-                          'Nenhuma mensagem ainda.\nEnvie um "Oi!" para começar.',
+                          '${AppStrings.of(context)?.noMessagesYet ?? 'Nenhuma mensagem ainda.'}\nEnvie um "Oi!" para começar.',
                           style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 14),
                           textAlign: TextAlign.center,
                         ),
@@ -240,7 +241,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   onPressed: _sending ? null : () => _showRecommendationModal(context, primary),
                   icon: const Icon(Icons.movie_creation_outlined),
                   color: Colors.white70,
-                  tooltip: 'Indicar filme ou série',
+                  tooltip: AppStrings.of(context)?.suggestMovie ?? 'Indicar filme ou série',
                 ),
                 const SizedBox(width: 4),
                 Expanded(
@@ -248,7 +249,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     controller: _controller,
                     style: const TextStyle(color: Colors.white),
                     decoration: InputDecoration(
-                      hintText: 'Mensagem...',
+                      hintText: AppStrings.of(context)?.messageHint ?? 'Mensagem...',
                       hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
                       filled: true,
                       fillColor: Colors.white.withOpacity(0.1),
@@ -528,9 +529,9 @@ class _RecommendationSearchSheetState extends State<_RecommendationSearchSheet> 
             children: [
               const Icon(Icons.movie_creation_outlined, color: Colors.white70, size: 24),
               const SizedBox(width: 10),
-              const Text(
-                'Indicar filme ou série',
-                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+              Text(
+                AppStrings.of(context)?.suggestMovie ?? 'Indicar filme ou série',
+                style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const Spacer(),
               IconButton(

@@ -148,16 +148,20 @@ class FriendsService {
   }
 
   /// Quantidade de amigos de um usuário (para exibir no perfil público/amigo).
-  Future<int> getFriendCountForUser(String userId) async {
+  /// Usa RPC get_friend_count porque a tabela friends tem RLS.
+  /// Retorna null em caso de erro (para a UI exibir "—" ou retry).
+  Future<int?> getFriendCountForUser(String userId) async {
     final client = _client;
-    if (client == null || userId.isEmpty) return 0;
+    if (client == null || userId.isEmpty) return null;
     try {
-      final res = await client.from(_tableFriends).select('id').eq('user_id', userId);
-      if (res is List) return res.length;
+      final res = await client.rpc('get_friend_count', params: {'target_user_id': userId});
+      if (res == null) return 0;
+      if (res is int) return res;
+      if (res is num) return res.toInt();
       return 0;
     } catch (e) {
       ServiceLocator.log.e('FriendsService.getFriendCountForUser', tag: 'Friends', error: e);
-      return 0;
+      return null;
     }
   }
 
@@ -334,37 +338,15 @@ class FriendsService {
     }
   }
 
-  /// Aceita pedido de amizade.
+  /// Aceita pedido de amizade. Usa RPC em transação no servidor quando disponível.
   Future<bool> acceptRequest(String requestId) async {
     final client = _client;
-    final userId = _userId;
-    if (client == null || userId == null || requestId.isEmpty) return false;
+    if (client == null || requestId.isEmpty) return false;
 
     try {
-      final row = await client.from(_tableRequests).select('from_user_id').eq('id', requestId).eq('to_user_id', userId).maybeSingle();
-      if (row == null) return false;
-      final fromUserId = row['from_user_id']?.toString();
-      if (fromUserId == null) return false;
-
-      // 1. Tenta inserir a relação "Eu sigo Amigo" (mais importante)
-      try {
-        await client.from(_tableFriends).insert({'user_id': userId, 'friend_user_id': fromUserId});
-      } catch (e) {
-        // Se já existir, ignora (ou loga)
-      }
-
-      // 2. Tenta inserir a relação "Amigo segue Eu"
-      // Se RLS bloquear, isso falha, mas a amizade "Minha" foi criada e a request será deletada.
-      try {
-        await client.from(_tableFriends).insert({'user_id': fromUserId, 'friend_user_id': userId});
-      } catch (e) {
-        // Ignora falha de RLS ou constraint
-      }
-      
-      // 3. Deleta o pedido de amizade (para sair da lista de Pendentes)
-      await client.from(_tableRequests).delete().eq('id', requestId);
-
-      return true;
+      final res = await client.rpc('accept_friend_request', params: {'p_request_id': requestId});
+      if (res is bool) return res;
+      return false;
     } catch (e) {
       ServiceLocator.log.e('FriendsService.acceptRequest', tag: 'Friends', error: e);
       return false;

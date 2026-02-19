@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../i18n/app_strings.dart';
 import '../../features/splash/screens/splash_screen.dart';
 import '../../features/launcher/screens/launcher_screen.dart';
 import '../../features/auth/screens/auth_screen.dart';
@@ -76,7 +77,7 @@ class AppRouter {
         return _buildRoute(
           PlayerScreen(
             channelUrl: args?['channelUrl'] ?? '',
-            channelName: args?['channelName'] ?? 'Unknown',
+            channelName: args?['channelName'] ?? 'Sem título',
             channelLogo: args?['channelLogo'],
             isMultiScreen: args?['isMultiScreen'] ?? false,
             isVod: args?['isVod'] ?? false,
@@ -170,9 +171,11 @@ class AppRouter {
 
       default:
         return _buildRoute(
-          Scaffold(
-            body: Center(
-              child: Text('No route defined for ${settings.name}'),
+          Builder(
+            builder: (ctx) => Scaffold(
+              body: Center(
+                child: Text('${AppStrings.of(ctx)?.routeNotDefined ?? 'Rota não definida para '}${settings.name}'),
+              ),
             ),
           ),
           settings,

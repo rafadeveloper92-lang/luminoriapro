@@ -93,3 +93,7 @@ android/app/*.keystore
 
 # Large SQL files (can be downloaded separately)
 assets/sql/channel_logos.sql
+
+# Vídeos grandes (GitHub limite 100 MB) — não fazer commit; o launcher usa fallback sem vídeo
+assets/videos/**/*.mp4
+assets/videos/**/*.mov

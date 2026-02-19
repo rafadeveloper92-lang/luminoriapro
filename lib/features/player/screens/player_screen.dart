@@ -36,6 +36,8 @@ class PlayerScreen extends StatefulWidget {
   final String channelName;
   final String? channelLogo;
   final bool isMultiScreen; // 是否强制进入分屏模式
+  /// true quando o conteúdo é filme/série (VOD): concede 1 moeda por minuto assistido.
+  final bool isVod;
 
   const PlayerScreen({
     super.key,
@@ -43,6 +45,7 @@ class PlayerScreen extends StatefulWidget {
     required this.channelName,
     this.channelLogo,
     this.isMultiScreen = false,
+    this.isVod = false,
   });
 
   @override
@@ -106,6 +109,10 @@ class _PlayerScreenState extends State<PlayerScreen>
 
   // Travar controles (cadeado): quando true, toques não mostram controles; só botão desbloquear visível
   bool _controlsLocked = false;
+
+  // Ranking global: reportar tempo a cada 2 min durante reprodução e o resto no dispose
+  Timer? _watchSessionReportTimer;
+  int _lastReportedSessionMinutes = 0;
 
   // 检查是否处于分屏模式（使用本地状态）
   bool _isMultiScreenMode() {
@@ -193,6 +200,26 @@ class _PlayerScreenState extends State<PlayerScreen>
     if (_isLoading != newLoading) {
       setState(() {
         _isLoading = newLoading;
+      });
+    }
+
+    // Iniciar timer de reporte para ranking global (a cada 2 min) quando estiver a reproduzir
+    if (!_usingNativePlayer &&
+        _profileProvider != null &&
+        provider.state == PlayerState.playing &&
+        provider.position.inMinutes >= 1 &&
+        _watchSessionReportTimer == null) {
+      _lastReportedSessionMinutes = 0;
+      _watchSessionReportTimer = Timer.periodic(const Duration(minutes: 2), (_) {
+        if (!mounted || _playerProvider == null || _profileProvider == null) return;
+        final pos = _playerProvider!.position.inMinutes;
+        if (pos <= _lastReportedSessionMinutes) return;
+        final toReport = (pos - _lastReportedSessionMinutes).clamp(1, 2);
+        _lastReportedSessionMinutes = pos;
+        try {
+          _profileProvider!.reportWatchSession(Duration(minutes: toReport));
+          ServiceLocator.log.d('PlayerScreen: Reported $toReport min (ranking) during playback');
+        } catch (_) {}
       });
     }
 
@@ -606,18 +633,34 @@ class _PlayerScreenState extends State<PlayerScreen>
       _playerProvider!.removeListener(_onProviderUpdate);
     }
 
-    // Reportar tempo assistido para XP no perfil (Supabase)
+    // Reportar tempo assistido para XP e ranking global (Supabase)
     // IMPORTANTE: Fazer isso ANTES de parar o player, senão a posição zera.
+    // Só é reportado no player Flutter (in-app). No Android TV com player nativo não há report.
+    _watchSessionReportTimer?.cancel();
+    _watchSessionReportTimer = null;
     if (!_usingNativePlayer && _playerProvider != null && _profileProvider != null) {
       final pos = _playerProvider!.position;
-      // Só conta se assistiu pelo menos 1 minuto
-      if (pos.inMinutes >= 1) {
+      final totalMinutes = pos.inMinutes;
+      if (totalMinutes >= 1) {
         try {
-          _profileProvider!.reportWatchSession(pos);
-          ServiceLocator.log.d('PlayerScreen: Reported watch session ${pos.inMinutes} mins');
+          final remainder = (totalMinutes - _lastReportedSessionMinutes).clamp(0, totalMinutes);
+          if (remainder >= 1) {
+            _profileProvider!.reportWatchSession(Duration(minutes: remainder), forVod: widget.isVod);
+            ServiceLocator.log.d('PlayerScreen: Reported watch session $remainder mins on close (total $totalMinutes, already reported $_lastReportedSessionMinutes)${widget.isVod ? " + coins" : ""}');
+          }
         } catch (e) {
-          ServiceLocator.log.e('PlayerScreen: Failed to report XP: $e');
+          ServiceLocator.log.e('PlayerScreen: Failed to report watch session (XP/ranking): $e');
         }
+      } else if (totalMinutes == 0) {
+        ServiceLocator.log.d('PlayerScreen: Position was 0 at dispose — nothing reported. Check if stream updates position.');
+      }
+    } else if (_playerProvider != null) {
+      final pos = _playerProvider!.position;
+      if (pos.inMinutes >= 1) {
+        ServiceLocator.log.d(
+          'PlayerScreen: Watch session NOT reported (${pos.inMinutes} mins). '
+          'Reason: ${_usingNativePlayer ? "native player" : _profileProvider == null ? "profile not available" : "unknown"}',
+        );
       }
     }
 

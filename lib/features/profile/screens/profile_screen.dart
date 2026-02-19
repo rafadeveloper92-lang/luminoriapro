@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/navigation/app_router.dart';
 import '../../../core/services/admin_auth_service.dart';
+import '../../../core/services/friends_service.dart';
 import '../../../core/services/license_service.dart';
 import '../../../core/services/vod_watch_history_service.dart';
 import '../../../core/services/user_profile_service.dart';
@@ -13,11 +14,15 @@ import '../../favorites/providers/favorites_provider.dart';
 import '../../friends/providers/friends_provider.dart';
 import '../profile_ranks.dart';
 import '../providers/profile_provider.dart';
+import '../providers/theme_provider.dart';
 import '../widgets/rank_badge_widget.dart';
+import '../widgets/animated_profile_avatar.dart';
+import '../widgets/theme_decorations.dart';
+import '../../../core/services/theme_service.dart';
 
-/// Gêneros pré-definidos (máx. 4 no perfil).
+/// Gêneros pré-definidos (máx. 4 no perfil). Salvos em user_profiles.favorite_genres no Supabase.
 const List<String> kProfileGenres = [
-  'TERROR', 'ANIME', 'AÇÃO', 'DRAMA', 'COMÉDIA', 'ROMANCE', 'FICÇÃO', 'SUSPENSE', 'AVENTURA', 'DOCUMENTÁRIO',
+  'TERROR', 'ANIME', 'AÇÃO', 'DRAMA', 'COMÉDIA', 'ROMANCE', 'FICÇÃO', 'SUSPENSE', 'AVENTURA', 'DOCUMENTÁRIO', 'GUERRA',
 ];
 
 /// Países (código ISO e nome).
@@ -76,6 +81,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
   List<VodWatchHistoryItem>? _vodHistory;
   UserProfile? _otherUserProfile;
+  int? _otherFriendCount;
   bool _isLoadingOther = false;
 
   @override
@@ -97,6 +103,12 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
 
   @override
   void dispose() {
+    if (widget.userId == null) {
+      try {
+        context.read<ThemeProvider>().pauseMusic();
+        context.read<ProfileProvider>().stopRealtimeSubscription();
+      } catch (_) {}
+    }
     AppRouter.routeObserver.unsubscribe(this);
     super.dispose();
   }
@@ -104,6 +116,23 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
   @override
   void didPopNext() {
     _refreshHistory();
+    if (widget.userId == null) {
+      context.read<ThemeProvider>().resumeMusic();
+      context.read<ProfileProvider>().startRealtimeSubscription(() {
+        if (!mounted) return;
+        context.read<ThemeProvider>().loadEquippedTheme(
+          context.read<ProfileProvider>().profile?.equippedThemeKey,
+        );
+      });
+    }
+  }
+
+  @override
+  void didPushNext() {
+    // Pausar música quando sair da tela de perfil
+    if (widget.userId == null) {
+      context.read<ThemeProvider>().pauseMusic();
+    }
   }
 
   void _refreshHistory() async {
@@ -119,26 +148,42 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
 
   Future<void> _initProfile() async {
     final myId = context.read<ProfileProvider>().currentUserId;
-    
+
     if (widget.userId != null && widget.userId != myId) {
       setState(() => _isLoadingOther = true);
       try {
-        final p = await UserProfileService.instance.getProfile(widget.userId!);
+        final otherId = widget.userId!;
+        final p = await UserProfileService.instance.getProfile(otherId);
+        final history = await VodWatchHistoryService.instance.getWatchHistoryForUser(otherId, limit: 30);
+        final friendCount = await FriendsService.instance.getFriendCountForUser(otherId);
         if (mounted) {
           setState(() {
-            _otherUserProfile = p ?? UserProfile(userId: widget.userId!); 
+            _otherUserProfile = p ?? UserProfile(userId: otherId);
+            _vodHistory = history;
+            _otherFriendCount = friendCount;
             _isLoadingOther = false;
           });
+          if (p != null && p.equippedThemeKey != null) {
+            context.read<ThemeProvider>().loadEquippedTheme(p.equippedThemeKey);
+          }
         }
-        if (mounted) setState(() => _vodHistory = []); 
       } catch (e) {
         if (mounted) setState(() => _isLoadingOther = false);
       }
     } else {
-      context.read<ProfileProvider>().loadProfile();
+      await context.read<ProfileProvider>().loadProfile();
+      if (!mounted) return;
+      final profile = context.read<ProfileProvider>().profile;
+      context.read<ThemeProvider>().loadEquippedTheme(profile?.equippedThemeKey);
       context.read<FriendsProvider>().loadAll();
       VodWatchHistoryService.instance.getWatchHistory(limit: 30).then((l) {
         if (mounted) setState(() => _vodHistory = l);
+      });
+      context.read<ProfileProvider>().startRealtimeSubscription(() {
+        if (!mounted) return;
+        context.read<ThemeProvider>().loadEquippedTheme(
+          context.read<ProfileProvider>().profile?.equippedThemeKey,
+        );
       });
     }
   }
@@ -147,7 +192,7 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.getBackgroundColor(context),
-      appBar: widget.userId != null 
+      appBar: widget.userId != null
           ? AppBar(
               backgroundColor: Colors.transparent,
               elevation: 0,
@@ -155,8 +200,15 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
                 icon: const Icon(Icons.arrow_back, color: Colors.white),
                 onPressed: () => Navigator.of(context).pop(),
               ),
-            ) 
-          : null,
+            )
+          : AppBar(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              leading: IconButton(
+                icon: const Icon(Icons.inventory_2, color: Colors.white),
+                onPressed: () => Navigator.of(context).pushNamed(AppRouter.inventory),
+              ),
+            ),
       extendBodyBehindAppBar: true, 
       body: Consumer3<ProfileProvider, FavoritesProvider, FriendsProvider>(
         builder: (context, myProfileProv, favorites, friendsProv, _) {
@@ -186,8 +238,10 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
           final countryCode = displayProfile?.countryCode ?? (isMe ? myProfileProv.countryCode : null);
           final city = displayProfile?.city ?? (isMe ? myProfileProv.city : null);
 
-          final favCount = isMe ? (favorites.count + favorites.vodCount) : 0; 
-          final friendCount = isMe ? friendsProv.totalFriendsCount : 0;
+          final favCount = isMe
+              ? (favorites.count + favorites.vodCount)
+              : ((displayProfile?.favChannelsCount ?? 0) + (displayProfile?.favVodCount ?? 0));
+          final friendCount = isMe ? friendsProv.totalFriendsCount : (_otherFriendCount ?? 0);
 
           final currentRank = getRankForXp(xp);
           final nextRank = kProfileRanks.indexOf(currentRank) < kProfileRanks.length - 1
@@ -197,26 +251,39 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
           final xpNeededForNext = nextRank != null ? nextRank.xpRequired - currentRank.xpRequired : 1;
           final levelProgress = xpNeededForNext > 0 ? (xpInCurrentLevel / xpNeededForNext).clamp(0.0, 1.0) : 1.0;
           final levelLabel = rankLabelForXp(xp);
+          final equippedBorderKey = displayProfile?.equippedBorderKey ?? (isMe ? myProfileProv.equippedBorderKey : null);
 
-          return CustomScrollView(
-            slivers: [
-              SliverToBoxAdapter(
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    SizedBox(
-                      height: 200,
-                      width: double.infinity,
-                      child: coverUrl != null && coverUrl.isNotEmpty
-                          ? CachedNetworkImage(
-                              imageUrl: coverUrl,
-                              fit: BoxFit.cover,
-                              placeholder: (_, __) => _buildCoverPlaceholder(),
-                              errorWidget: (_, __, ___) => _buildCoverPlaceholder(),
-                            )
-                          : _buildCoverPlaceholder(),
-                    ),
-                    Positioned(
+          // Obter tema se estiver equipado
+          final themeProvider = isMe ? context.watch<ThemeProvider>() : null;
+          final currentTheme = themeProvider?.currentTheme;
+          
+          // Usar capa do tema se disponível, senão usar capa do perfil
+          final effectiveCoverUrl = (currentTheme?.coverImageUrl != null && currentTheme!.coverImageUrl!.isNotEmpty)
+              ? currentTheme.coverImageUrl
+              : coverUrl;
+
+          return ThemeDecorations(
+            child: Stack(
+              children: [
+                CustomScrollView(
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        SizedBox(
+                          height: 200,
+                          width: double.infinity,
+                          child: effectiveCoverUrl != null && effectiveCoverUrl.isNotEmpty
+                              ? CachedNetworkImage(
+                                  imageUrl: effectiveCoverUrl,
+                                  fit: BoxFit.cover,
+                                  placeholder: (_, __) => _buildCoverPlaceholder(),
+                                  errorWidget: (_, __, ___) => _buildCoverPlaceholder(),
+                                )
+                              : _buildCoverPlaceholder(),
+                        ),
+                        Positioned(
                       left: 0,
                       right: 0,
                       bottom: 0,
@@ -236,51 +303,22 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
                       right: 0,
                       bottom: -50,
                       child: Center(
-                        child: Stack(
-                          clipBehavior: Clip.none,
-                          children: [
-                            CircleAvatar(
-                              radius: 52,
-                              backgroundColor: Colors.black,
-                              child: Stack(
-                                clipBehavior: Clip.none,
-                                children: [
-                                  CircleAvatar(
-                                    radius: 48,
-                                    backgroundColor: Colors.grey.shade800,
-                                    child: avatarUrl != null && avatarUrl.isNotEmpty
-                                        ? ClipRRect(
-                                            borderRadius: BorderRadius.circular(48),
-                                            child: CachedNetworkImage(
-                                              imageUrl: avatarUrl,
-                                              fit: BoxFit.cover,
-                                              width: 96,
-                                              height: 96,
-                                              placeholder: (_, __) => _avatarPlaceholder(displayName),
-                                              errorWidget: (_, __, ___) => _avatarPlaceholder(displayName),
-                                            ),
-                                          )
-                                        : _avatarPlaceholder(displayName),
-                                  ),
-                                  Positioned(
-                                    right: -4,
-                                    bottom: -4,
-                                    child: RankBadgeWidget(
-                                      rank: currentRank,
-                                      size: 36,
-                                      showLevel: true,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
+                        child: AnimatedProfileAvatar(
+                          avatarUrl: avatarUrl,
+                          displayName: displayName,
+                          size: 48,
+                          borderKey: equippedBorderKey,
+                          overlay: RankBadgeWidget(
+                            rank: currentRank,
+                            size: 36,
+                            showLevel: true,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
               const SliverToBoxAdapter(child: SizedBox(height: 60)),
               SliverToBoxAdapter(
                 child: Center(
@@ -431,9 +469,9 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
                     children: [
                       _statCard(context, Icons.people_rounded, 'AMIGOS', '$friendCount'), 
                       const SizedBox(width: 8),
-                      _statCard(context, Icons.history_rounded, 'VISTOS', isMe ? '${_vodHistory?.length ?? 0}' : '-'),
+                      _statCard(context, Icons.history_rounded, 'VISTOS', '${_vodHistory?.length ?? 0}'),
                       const SizedBox(width: 8),
-                      _statCard(context, Icons.favorite_rounded, 'FAVS', isMe ? '$favCount' : '-'),
+                      _statCard(context, Icons.favorite_rounded, 'FAVS', '$favCount'),
                       const SizedBox(width: 8),
                       _statCard(context, Icons.schedule_rounded, 'HORAS', '${watchHours.toInt()}'),
                     ],
@@ -496,58 +534,57 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
               ),
               const SliverToBoxAdapter(child: SizedBox(height: 24)),
               
-              if (isMe) ...[
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              width: 4,
-                              height: 22,
-                              decoration: BoxDecoration(
-                                color: Colors.blue.shade600,
-                                borderRadius: BorderRadius.circular(2),
-                              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 4,
+                            height: 22,
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade600,
+                              borderRadius: BorderRadius.circular(2),
                             ),
-                            const SizedBox(width: 10),
-                            const Text(
-                              'LINHA DO TEMPO',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
+                          ),
+                          const SizedBox(width: 10),
+                          const Text(
+                            'LINHA DO TEMPO',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
                             ),
-                            const Spacer(),
+                          ),
+                          const Spacer(),
+                          if (isMe)
                             IconButton(
                               icon: const Icon(Icons.refresh_rounded, color: Colors.white70, size: 22),
                               onPressed: () => _refreshHistory(),
                             ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        if (_vodHistory == null)
-                          const Center(child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator(color: Colors.white24)))
-                        else if (_vodHistory!.isEmpty)
-                          Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Text(
-                              'Nenhum filme ou série assistido ainda.',
-                              style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
-                            ),
-                          )
-                        else
-                          ..._vodHistory!.take(10).map((item) => _buildTimelineEntry(context, item)),
-                      ],
-                    ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      if (_vodHistory == null)
+                        const Center(child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator(color: Colors.white24)))
+                      else if (_vodHistory!.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Text(
+                            isMe ? 'Nenhum filme ou série assistido ainda.' : 'Nenhum filme ou série assistido.',
+                            style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
+                          ),
+                        )
+                      else
+                        ..._vodHistory!.take(10).map((item) => _buildTimelineEntry(context, item)),
+                    ],
                   ),
                 ),
-                const SliverToBoxAdapter(child: SizedBox(height: 24)),
-              ],
+              ),
+              const SliverToBoxAdapter(child: SizedBox(height: 24)),
 
               if (isMe)
                 SliverToBoxAdapter(
@@ -679,18 +716,12 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
                   ),
                 ),
               const SliverToBoxAdapter(child: SizedBox(height: 40)),
+                ],
+              ),
             ],
+          ),
           );
         },
-      ),
-    );
-  }
-
-  Widget _avatarPlaceholder(String displayName) {
-    return Center(
-      child: Text(
-        displayName.isNotEmpty ? displayName.substring(0, 1).toUpperCase() : '?',
-        style: const TextStyle(color: Colors.white, fontSize: 40, fontWeight: FontWeight.bold),
       ),
     );
   }
@@ -909,6 +940,11 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
     if (c.contains('DRAMA')) return Colors.purple.shade700;
     if (c.contains('COMÉDIA') || c.contains('COMEDIA')) return Colors.amber.shade700;
     if (c.contains('ROMANCE')) return Colors.pink.shade400;
+    if (c.contains('GUERRA')) return Colors.brown.shade700;
+    if (c.contains('FICÇÃO') || c.contains('FICCAO')) return Colors.cyan.shade700;
+    if (c.contains('SUSPENSE')) return Colors.indigo.shade700;
+    if (c.contains('AVENTURA')) return Colors.green.shade700;
+    if (c.contains('DOCUMENTÁRIO') || c.contains('DOCUMENTARIO')) return Colors.teal.shade700;
     return AppTheme.getPrimaryColor(context);
   }
 
@@ -1125,18 +1161,53 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
                         }
                       },
                     ),
-                    ListTile(
-                      leading: const Icon(Icons.photo_library_rounded, color: Colors.white70),
-                      title: const Text('Trocar capa (Upload)', style: TextStyle(color: Colors.white)),
-                      onTap: () async {
-                        // REMOVIDO: Navigator.pop(ctx);
-                        final ok = await profile.pickAndUploadCover();
-                        if (context.mounted) {
-                          setModalState(() {});
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(ok ? 'Capa carregada! Salve para confirmar.' : 'Falha ao enviar capa.'), duration: const Duration(seconds: 2)),
-                          );
-                        }
+                    const SizedBox(height: 8),
+                  ],
+                  // Seção de Tema
+                  if (profile.equippedThemeKey != null && profile.equippedThemeKey!.isNotEmpty) ...[
+                    const Divider(color: Colors.white24),
+                    const SizedBox(height: 8),
+                    FutureBuilder(
+                      future: ThemeService.instance.getThemeByKey(profile.equippedThemeKey!),
+                      builder: (context, snapshot) {
+                        final theme = snapshot.data;
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.palette, color: Colors.white70, size: 20),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Tema Ativo: ${theme?.name ?? profile.equippedThemeKey}',
+                                    style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: const Icon(Icons.remove_circle_outline, color: Colors.red),
+                              title: const Text('Remover Tema', style: TextStyle(color: Colors.red)),
+                              subtitle: const Text('Voltar ao perfil padrão', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                              onTap: () async {
+                                final themeProvider = Provider.of<ThemeProvider>(ctx, listen: false);
+                                final ok = await themeProvider.unequipTheme();
+                                if (ctx.mounted) {
+                                  Navigator.pop(ctx);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(ok ? 'Tema removido. Perfil voltou ao padrão.' : 'Erro ao remover tema.'),
+                                      duration: const Duration(seconds: 2),
+                                    ),
+                                  );
+                                }
+                              },
+                            ),
+                          ],
+                        );
                       },
                     ),
                     const SizedBox(height: 8),

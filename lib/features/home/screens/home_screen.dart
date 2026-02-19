@@ -25,6 +25,9 @@ import '../../playlist/widgets/add_playlist_dialog.dart';
 import '../../favorites/providers/favorites_provider.dart';
 import '../../favorites/screens/favorites_screen.dart';
 import '../../profile/screens/profile_screen.dart';
+import '../../profile/providers/profile_provider.dart';
+import '../../profile/providers/theme_provider.dart';
+import '../../shop/screens/shop_screen.dart';
 import '../../friends/widgets/friends_panel.dart';
 import '../../rank/widgets/global_rank_panel.dart';
 import '../../vod/screens/series_catalog_screen.dart';
@@ -330,6 +333,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
     items.addAll([
       _NavItem(icon: Icons.playlist_play_rounded, label: strings?.playlistList ?? 'Sources'),
       _NavItem(icon: Icons.favorite_rounded, label: strings?.favorites ?? 'Favorites'),
+      _NavItem(icon: Icons.shopping_bag_rounded, label: 'Loja'),
       _NavItem(icon: Icons.person_rounded, label: 'Perfil'),
     ]);
     return items;
@@ -337,7 +341,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
 
   void _onNavItemTap(int index) {
     if (index == _selectedNavIndex) return;
+    final isXtream = context.read<ChannelProvider>().isXtream;
+    final profileIndex = isXtream ? 6 : 5;
+    if (_selectedNavIndex == profileIndex) {
+      context.read<ThemeProvider>().pauseMusic();
+      context.read<ProfileProvider>().stopRealtimeSubscription();
+    }
     setState(() => _selectedNavIndex = index);
+    if (index == profileIndex) {
+      context.read<ProfileProvider>().startRealtimeSubscription(() {
+        if (!context.mounted) return;
+        context.read<ThemeProvider>().loadEquippedTheme(
+          context.read<ProfileProvider>().profile?.equippedThemeKey,
+        );
+      });
+    }
     if (index == 0) _refreshWatchHistory();
   }
 
@@ -428,21 +446,31 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
       );
     }
 
-    return GestureDetector(
-      onHorizontalDragStart: (details) {
-        _dragStartX = details.globalPosition.dx;
-      },
-      onHorizontalDragUpdate: (details) {
-        final screenWidth = MediaQuery.of(context).size.width;
-        if (_dragStartX > screenWidth - 40 && details.primaryDelta! < -5) {
-          _showFriendsPanel(context);
-          _dragStartX = 0; 
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (_selectedNavIndex != 0) {
+          setState(() => _selectedNavIndex = 0);
         }
+        // No separador Home não faz nada (evita voltar ao Launcher ou fechar o app)
       },
-      child: Scaffold(
-        backgroundColor: AppTheme.getBackgroundColor(context),
-        body: SafeArea(child: _buildBody()),
-        bottomNavigationBar: _buildBottomNav(context),
+      child: GestureDetector(
+        onHorizontalDragStart: (details) {
+          _dragStartX = details.globalPosition.dx;
+        },
+        onHorizontalDragUpdate: (details) {
+          final screenWidth = MediaQuery.of(context).size.width;
+          if (_dragStartX > screenWidth - 40 && details.primaryDelta! < -5) {
+            _showFriendsPanel(context);
+            _dragStartX = 0;
+          }
+        },
+        child: Scaffold(
+          backgroundColor: AppTheme.getBackgroundColor(context),
+          body: SafeArea(child: _buildBody()),
+          bottomNavigationBar: _buildBottomNav(context),
+        ),
       ),
     );
   }
@@ -460,11 +488,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
       if (adjustedIndex == 2) return const SeriesCatalogScreen();
       if (adjustedIndex == 3) return const _EmbeddedPlaylistListScreen();
       if (adjustedIndex == 4) return const _EmbeddedFavoritesScreen();
-      if (adjustedIndex == 5) return const ProfileScreen(embedded: true);
+      if (adjustedIndex == 5) return const ShopScreen(embedded: true);
+      if (adjustedIndex == 6) return const ProfileScreen(embedded: true);
     } else {
       if (adjustedIndex == 2) return const _EmbeddedPlaylistListScreen();
       if (adjustedIndex == 3) return const _EmbeddedFavoritesScreen();
-      if (adjustedIndex == 4) return const ProfileScreen(embedded: true);
+      if (adjustedIndex == 4) return const ShopScreen(embedded: true);
+      if (adjustedIndex == 5) return const ProfileScreen(embedded: true);
     }
     
     return Center(child: Text('Page Index $adjustedIndex Not Found', style: const TextStyle(color: Colors.white)));

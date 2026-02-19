@@ -25,10 +25,13 @@ import 'features/epg/providers/epg_provider.dart';
 import 'features/multi_screen/providers/multi_screen_provider.dart';
 import 'features/cinema/providers/cinema_room_provider.dart';
 import 'package:flutter_iptv/features/profile/providers/profile_provider.dart';
+import 'package:flutter_iptv/features/profile/providers/inventory_provider.dart';
+import 'package:flutter_iptv/features/profile/providers/theme_provider.dart';
 import 'package:flutter_iptv/features/friends/providers/friends_provider.dart';
 import 'package:flutter_iptv/features/rank/providers/rank_provider.dart';
 import 'core/widgets/window_title_bar.dart';
 import 'core/config/license_config.dart';
+import 'core/services/admin_auth_service.dart';
 import 'core/services/friends_service.dart';
 import 'core/services/user_activity_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -193,6 +196,8 @@ class _FlutterIPTVAppState extends State<FlutterIPTVApp> {
         ChangeNotifierProvider(create: (_) => MultiScreenProvider()),
         ChangeNotifierProvider(create: (_) => CinemaRoomProvider()),
         ChangeNotifierProvider(create: (_) => ProfileProvider()),
+        ChangeNotifierProvider(create: (_) => InventoryProvider()),
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => FriendsProvider()),
         ChangeNotifierProvider(create: (_) => RankProvider()),
       ],
@@ -298,6 +303,11 @@ class _DlnaAwareAppState extends State<_DlnaAwareApp> with WindowListener, Widge
     if (state == AppLifecycleState.resumed) {
       UserActivityService.instance.ping();
       FriendsService.instance.setUserStatus('online');
+      if (AdminAuthService.instance.currentUserId != null && mounted) {
+        try {
+          context.read<ProfileProvider>().loadProfile();
+        } catch (_) {}
+      }
     } else if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden) {
       FriendsService.instance.setUserStatus('offline');
     }
@@ -623,7 +633,7 @@ class _DlnaAwareAppState extends State<_DlnaAwareApp> with WindowListener, Widge
                 const ActivateIntent(),
           },
           onGenerateRoute: AppRouter.generateRoute,
-          initialRoute: AppRouter.splash,
+          initialRoute: AppRouter.launcher,
           builder: (context, child) {
             return MediaQuery(
               data: MediaQuery.of(context).copyWith(

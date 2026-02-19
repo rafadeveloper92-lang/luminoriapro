@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../features/splash/screens/splash_screen.dart';
+import '../../features/launcher/screens/launcher_screen.dart';
 import '../../features/auth/screens/auth_screen.dart';
 import '../../features/auth/screens/login_screen.dart';
 import '../../features/auth/screens/admin_panel_screen.dart';
@@ -18,7 +19,9 @@ import '../../features/cinema/screens/cinema_join_screen.dart';
 import '../../features/friends/screens/user_profile_view_screen.dart';
 import '../../features/friends/screens/chat_screen.dart';
 import '../../features/profile/screens/profile_screen.dart';
+import '../../features/profile/screens/inventory_screen.dart';
 import '../../features/rank/screens/global_rank_screen.dart';
+import '../../features/shop/screens/shop_screen.dart';
 
 class AppRouter {
   // Route observer for tracking navigation
@@ -26,6 +29,7 @@ class AppRouter {
   
   // Route names
   static const String splash = '/';
+  static const String launcher = '/launcher';
   static const String login = '/login';
   static const String auth = '/auth';
   static const String admin = '/admin';
@@ -43,12 +47,17 @@ class AppRouter {
   static const String userProfileView = '/user-profile-view';
   static const String chat = '/chat';
   static const String profile = '/profile';
+  static const String inventory = '/inventory';
   static const String globalRank = '/global-rank';
+  static const String shop = '/shop';
 
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
       case splash:
         return _buildRoute(const SplashScreen(), settings);
+
+      case launcher:
+        return _buildRoute(const LauncherScreen(), settings);
 
       case login:
         return _buildRoute(const LoginScreen(), settings);
@@ -70,6 +79,7 @@ class AppRouter {
             channelName: args?['channelName'] ?? 'Unknown',
             channelLogo: args?['channelLogo'],
             isMultiScreen: args?['isMultiScreen'] ?? false,
+            isVod: args?['isVod'] ?? false,
           ),
           settings,
         );
@@ -138,6 +148,9 @@ class AppRouter {
           settings,
         );
 
+      case inventory:
+        return _buildRoute(const InventoryScreen(), settings);
+
       case chat:
         final args = settings.arguments as Map<String, dynamic>?;
         return _buildRoute(
@@ -151,6 +164,9 @@ class AppRouter {
 
       case globalRank:
         return _buildRoute(const GlobalRankScreen(), settings);
+
+      case shop:
+        return _buildRoute(const ShopScreen(embedded: false), settings);
 
       default:
         return _buildRoute(

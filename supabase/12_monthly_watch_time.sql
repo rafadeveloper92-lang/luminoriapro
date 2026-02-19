@@ -2,6 +2,9 @@
 -- Ranking global mensal: tempo assistido por mês (minutos) e funções RPC
 -- Execute no Supabase: SQL Editor > New query > colar e Run.
 -- O ranking usa apenas o mês atual; todo mês "reseta" automaticamente.
+--
+-- OBRIGATÓRIO: Sem esta migração, o ranking global fica vazio mesmo com contas
+-- criadas e tempo assistido (o app chama add_monthly_watch_minutes e get_global_ranking).
 -- =============================================================================
 
 -- Tabela: tempo assistido por usuário por mês

@@ -10,6 +10,7 @@ import '../../../core/services/xtream_service.dart';
 import '../../channels/providers/channel_provider.dart';
 import '../../vod/screens/movie_detail_screen.dart';
 import '../../vod/screens/series_detail_screen.dart';
+import '../providers/friends_provider.dart';
 
 /// Tela de chat entre dois usuários.
 class ChatScreen extends StatefulWidget {
@@ -48,6 +49,11 @@ class _ChatScreenState extends State<ChatScreen> {
     _loadMessages();
     DirectMessageService.instance.markAsRead(widget.peerUserId);
     DirectMessageService.instance.addIncomingMessageListener(_onIncomingMessage);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<FriendsProvider>().clearUnreadFrom(widget.peerUserId);
+      }
+    });
   }
 
   Future<void> _loadMessages() async {

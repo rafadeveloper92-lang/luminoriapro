@@ -44,6 +44,34 @@ class NewSubscribersByDay {
   final int count;
 }
 
+/// Perfil resumido para lista de contas no painel admin.
+class AdminUserProfile {
+  const AdminUserProfile({
+    required this.userId,
+    this.displayName,
+    this.avatarUrl,
+    this.coins = 0,
+    required this.createdAt,
+  });
+
+  final String userId;
+  final String? displayName;
+  final String? avatarUrl;
+  final int coins;
+  final DateTime createdAt;
+
+  static AdminUserProfile fromMap(Map<String, dynamic> map) {
+    final createdAtStr = map['created_at'] as String?;
+    return AdminUserProfile(
+      userId: map['user_id'] as String? ?? '',
+      displayName: map['display_name'] as String?,
+      avatarUrl: map['avatar_url'] as String?,
+      coins: (map['coins'] as num?)?.toInt() ?? 0,
+      createdAt: createdAtStr != null ? DateTime.tryParse(createdAtStr) ?? DateTime.now() : DateTime.now(),
+    );
+  }
+}
+
 /// Serviço de estatísticas do painel admin (contas, online, pagamentos, gráfico).
 class AdminStatsService {
   AdminStatsService._();
@@ -91,6 +119,29 @@ class AdminStatsService {
       ServiceLocator.log.e('fetchPaymentEvents failed', tag: 'AdminStatsService', error: e);
       return [];
     }
+  }
+
+  /// Lista todos os perfis de usuário (para aba Contas do painel admin).
+  Future<List<AdminUserProfile>> fetchAllUserProfiles() async {
+    try {
+      final client = Supabase.instance.client;
+      final res = await client
+          .from('user_profiles')
+          .select('user_id, display_name, avatar_url, coins, created_at')
+          .order('created_at', ascending: false);
+      final list = res as List<dynamic>;
+      return list.map((e) => AdminUserProfile.fromMap(Map<String, dynamic>.from(e as Map))).toList();
+    } catch (e) {
+      ServiceLocator.log.e('fetchAllUserProfiles failed', tag: 'AdminStatsService', error: e);
+      return [];
+    }
+  }
+
+  /// Adiciona moedas à conta de um usuário (apenas admins; requer RPC admin_add_coins).
+  Future<void> addCoinsToUser(String userId, int amount) async {
+    if (amount < 1) throw ArgumentError('Amount must be positive');
+    final client = Supabase.instance.client;
+    await client.rpc('admin_add_coins', params: {'p_user_id': userId, 'p_amount': amount});
   }
 
   /// Novos assinantes por dia nos últimos [days] dias (para gráfico).

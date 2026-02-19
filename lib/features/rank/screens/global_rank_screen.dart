@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/rank_provider.dart';
@@ -18,7 +19,13 @@ class _GlobalRankScreenState extends State<GlobalRankScreen> {
     super.initState();
     // Carrega tudo ao abrir
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<RankProvider>().searchRank('');
+      final provider = context.read<RankProvider>();
+      provider.searchRank('').then((_) {
+        // Log adicional para debug
+        if (mounted) {
+          debugPrint('[GlobalRankScreen] Ranking carregado: ${provider.fullList.length} itens');
+        }
+      });
     });
   }
 
@@ -40,6 +47,15 @@ class _GlobalRankScreenState extends State<GlobalRankScreen> {
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.white),
+            onPressed: () {
+              context.read<RankProvider>().searchRank('');
+            },
+            tooltip: 'Atualizar ranking',
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -71,7 +87,25 @@ class _GlobalRankScreenState extends State<GlobalRankScreen> {
                   return const Center(child: CircularProgressIndicator(color: Color(0xFFE50914)));
                 }
                 if (prov.fullList.isEmpty) {
-                  return const Center(child: Text('Nenhum usuário encontrado.', style: TextStyle(color: Colors.white54)));
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Text('Nenhum usuário encontrado.', style: TextStyle(color: Colors.white54)),
+                          if (prov.lastError != null) ...[
+                            const SizedBox(height: 16),
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(color: Colors.red.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
+                              child: Text(prov.lastError!, style: const TextStyle(color: Colors.redAccent, fontSize: 12), textAlign: TextAlign.center),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  );
                 }
                 
                 return ListView.separated(

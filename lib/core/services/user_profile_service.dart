@@ -67,14 +67,109 @@ class UserProfileService {
     }
   }
 
-  /// Soma minutos assistidos no mês atual (ranking global mensal). Chamar ao reportar sessão.
-  Future<void> addMonthlyWatchMinutes(int minutes) async {
+  /// Soma minutos assistidos no mês atual (ranking global mensal = tabela monthly_watch_time). Chamar ao reportar sessão.
+  /// Requer: Supabase configurado, usuário logado, e migração supabase/12_monthly_watch_time.sql executada.
+  Future<bool> addMonthlyWatchMinutes(int minutes) async {
     final client = _client;
-    if (client == null || minutes < 1) return;
+    if (client == null) {
+      ServiceLocator.log.d('UserProfileService.addMonthlyWatchMinutes: Supabase não configurado, não atualiza ranking.', tag: 'Profile');
+      return false;
+    }
+    if (minutes < 1) {
+      ServiceLocator.log.d('UserProfileService.addMonthlyWatchMinutes: minutos < 1, ignorado.', tag: 'Profile');
+      return false;
+    }
     try {
       await client.rpc('add_monthly_watch_minutes', params: {'p_minutes': minutes});
+      ServiceLocator.log.d('UserProfileService.addMonthlyWatchMinutes: +$minutes min registados no ranking global (monthly_watch_time).', tag: 'Profile');
+      return true;
     } catch (e, st) {
-      ServiceLocator.log.e('UserProfileService.addMonthlyWatchMinutes', tag: 'Profile', error: e, stackTrace: st);
+      ServiceLocator.log.e(
+        'UserProfileService.addMonthlyWatchMinutes: falha ao atualizar ranking global (monthly_watch_time). '
+        'Confira se executou 12_monthly_watch_time.sql e se está logado. Erro: $e',
+        tag: 'Profile',
+        error: e,
+        stackTrace: st,
+      );
+      return false;
+    }
+  }
+
+  /// Adiciona moedas ao usuário logado por minutos assistidos em filme/série (1 moeda por minuto).
+  /// Requer: Supabase configurado, usuário logado, migração 23_add_coins_from_watch.sql executada.
+  Future<bool> addCoinsFromWatch(int minutes) async {
+    final client = _client;
+    if (client == null || minutes < 1) return false;
+    try {
+      await client.rpc('add_coins_from_watch', params: {'p_minutes': minutes});
+      ServiceLocator.log.d('UserProfileService.addCoinsFromWatch: +$minutes moedas (assistiu $minutes min VOD).', tag: 'Profile');
+      return true;
+    } catch (e, st) {
+      ServiceLocator.log.e('UserProfileService.addCoinsFromWatch: falha. Erro: $e', tag: 'Profile', error: e, stackTrace: st);
+      return false;
+    }
+  }
+
+  /// Atualiza apenas a borda equipada. Retorna o perfil atualizado ou null.
+  Future<UserProfile?> updateEquippedBorder(String userId, String? borderKey) async {
+    final client = _client;
+    if (client == null || userId.isEmpty) return null;
+    try {
+      final res = await client
+          .from(_table)
+          .update({
+            'equipped_border_key': borderKey,
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
+          })
+          .eq('user_id', userId)
+          .select()
+          .single();
+      return UserProfile.fromMap(Map<String, dynamic>.from(res));
+    } catch (e, st) {
+      ServiceLocator.log.e('UserProfileService.updateEquippedBorder', tag: 'Profile', error: e, stackTrace: st);
+      return null;
+    }
+  }
+
+  /// Atualiza o tema equipado. Retorna o perfil atualizado ou null.
+  Future<UserProfile?> updateEquippedTheme(String userId, String? themeKey) async {
+    final client = _client;
+    if (client == null || userId.isEmpty) return null;
+    try {
+      final res = await client
+          .from(_table)
+          .update({
+            'equipped_theme_key': themeKey,
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
+          })
+          .eq('user_id', userId)
+          .select()
+          .single();
+      return UserProfile.fromMap(Map<String, dynamic>.from(res));
+    } catch (e, st) {
+      ServiceLocator.log.e('UserProfileService.updateEquippedTheme', tag: 'Profile', error: e, stackTrace: st);
+      return null;
+    }
+  }
+
+  /// Atualiza se a música de fundo do tema está habilitada. Retorna o perfil atualizado ou null.
+  Future<UserProfile?> updateThemeMusicEnabled(String userId, bool enabled) async {
+    final client = _client;
+    if (client == null || userId.isEmpty) return null;
+    try {
+      final res = await client
+          .from(_table)
+          .update({
+            'theme_music_enabled': enabled,
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
+          })
+          .eq('user_id', userId)
+          .select()
+          .single();
+      return UserProfile.fromMap(Map<String, dynamic>.from(res));
+    } catch (e, st) {
+      ServiceLocator.log.e('UserProfileService.updateThemeMusicEnabled', tag: 'Profile', error: e, stackTrace: st);
+      return null;
     }
   }
 
@@ -95,6 +190,23 @@ class UserProfileService {
       lastError = e.toString();
       ServiceLocator.log.e('UserProfileService.saveProfile', tag: 'Profile', error: e, stackTrace: st);
       return null;
+    }
+  }
+
+  /// Atualiza contagens de favoritos no perfil (para exibir no perfil público/amigos).
+  Future<bool> updateFavoriteCounts(String userId, int favChannelsCount, int favVodCount) async {
+    final client = _client;
+    if (client == null || userId.isEmpty) return false;
+    try {
+      await client.from(_table).update({
+        'fav_channels_count': favChannelsCount,
+        'fav_vod_count': favVodCount,
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
+      }).eq('user_id', userId);
+      return true;
+    } catch (e, st) {
+      ServiceLocator.log.e('UserProfileService.updateFavoriteCounts', tag: 'Profile', error: e, stackTrace: st);
+      return false;
     }
   }
 

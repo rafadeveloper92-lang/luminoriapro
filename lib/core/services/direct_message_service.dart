@@ -242,6 +242,32 @@ class DirectMessageService {
     }
   }
 
+  /// Contagem de não lidas por remetente (from_user_id). Usado para ícone piscando na lista de amigos.
+  Future<Map<String, int>> getUnreadCountBySender() async {
+    final client = _client;
+    final userId = _userId;
+    if (client == null || userId == null) return {};
+
+    try {
+      final res = await client
+          .from(_table)
+          .select('from_user_id')
+          .eq('to_user_id', userId)
+          .isFilter('read_at', null);
+      final list = res as List;
+      final Map<String, int> bySender = {};
+      for (final row in list) {
+        final id = (row is Map ? row['from_user_id'] : null)?.toString();
+        if (id != null && id.isNotEmpty) {
+          bySender[id] = (bySender[id] ?? 0) + 1;
+        }
+      }
+      return bySender;
+    } catch (_) {
+      return {};
+    }
+  }
+
   /// Marca mensagens como lidas (quando o usuário abre o chat).
   Future<void> markAsRead(String fromUserId) async {
     final client = _client;

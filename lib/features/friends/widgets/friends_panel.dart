@@ -60,7 +60,7 @@ class _FriendsPanelState extends State<FriendsPanel> {
             Expanded(
               child: Consumer<FriendsProvider>(
                 builder: (context, prov, _) {
-                  if (prov.isLoading) {
+                  if (prov.isLoading && prov.friends.isEmpty && prov.requests.isEmpty) {
                     return const Center(
                       child: CircularProgressIndicator(color: AppTheme.primaryColor),
                     );
@@ -231,7 +231,9 @@ class _FriendsPanelState extends State<FriendsPanel> {
             children: [
               ...prov.favorites.map((f) => _FavoriteAvatar(
                     friend: f,
-                    isOnline: prov.isOnline(f),
+                    prov: prov,
+                    isBrowsing: prov.isBrowsing(f),
+                    isWatching: prov.isWatching(f),
                     primary: primary,
                   )),
               _AddFavoriteButton(primary: primary),
@@ -469,10 +471,18 @@ class _FilterTab extends StatelessWidget {
 
 class _FavoriteAvatar extends StatelessWidget {
   final Friend friend;
-  final bool isOnline;
+  final FriendsProvider prov;
+  final bool isBrowsing;
+  final bool isWatching;
   final Color primary;
 
-  const _FavoriteAvatar({required this.friend, required this.isOnline, required this.primary});
+  const _FavoriteAvatar({
+    required this.friend,
+    required this.prov,
+    required this.isBrowsing,
+    required this.isWatching,
+    required this.primary,
+  });
 
   void _showOptions(BuildContext context) {
     showModalBottomSheet(
@@ -578,7 +588,7 @@ class _FavoriteAvatar extends StatelessWidget {
                         )
                       : null,
                 ),
-                if (isOnline)
+                if (isBrowsing)
                   Positioned(
                     right: 0,
                     bottom: 0,
@@ -589,6 +599,34 @@ class _FavoriteAvatar extends StatelessWidget {
                         color: Colors.green,
                         shape: BoxShape.circle,
                         border: Border.all(color: const Color(0xFF0A0A0A), width: 2),
+                      ),
+                    ),
+                  ),
+                if (isWatching)
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: Container(
+                      width: 14,
+                      height: 14,
+                      decoration: BoxDecoration(
+                        color: Colors.orange,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: const Color(0xFF0A0A0A), width: 2),
+                      ),
+                    ),
+                  ),
+                if (prov.hasUnreadFrom(friend.peerUserId ?? friend.id))
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    child: Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: Colors.orange,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: const Color(0xFF0A0A0A), width: 1.5),
                       ),
                     ),
                   ),
@@ -797,7 +835,8 @@ class _FriendCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final statusLabel = prov.getStatusLabel(friend);
-    final isOnline = prov.isOnline(friend);
+    final isBrowsing = prov.isBrowsing(friend);
+    final isWatching = prov.isWatching(friend);
 
     return Container(
       padding: const EdgeInsets.all(10),
@@ -828,7 +867,7 @@ class _FriendCard extends StatelessWidget {
                       : null,
                 ),
               ),
-              if (isOnline)
+              if (isBrowsing)
                 Positioned(
                   right: 0,
                   top: 0,
@@ -837,6 +876,20 @@ class _FriendCard extends StatelessWidget {
                     height: 12,
                     decoration: BoxDecoration(
                       color: Colors.green,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: const Color(0xFF0A0A0A), width: 1.5),
+                    ),
+                  ),
+                ),
+              if (isWatching)
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  child: Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: Colors.orange,
                       shape: BoxShape.circle,
                       border: Border.all(color: const Color(0xFF0A0A0A), width: 1.5),
                     ),
@@ -861,7 +914,11 @@ class _FriendCard extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 10),
+            style: TextStyle(
+              color: isWatching ? primary : Colors.white.withOpacity(0.6),
+              fontSize: 10,
+              fontWeight: isWatching ? FontWeight.w600 : FontWeight.normal,
+            ),
           ),
           
           const Spacer(), // Empurra os botões para o final do card
@@ -877,11 +934,11 @@ class _FriendCard extends StatelessWidget {
                   onTap: () => _openProfile(context),
                   tooltip: 'Perfil',
                 ),
-                _IconBtn(
-                  icon: Icons.chat_bubble_outline, 
-                  color: primary, 
+                _ChatIconWithUnread(
+                  prov: prov,
+                  peerUserId: friend.peerUserId ?? friend.id,
+                  primary: primary,
                   onTap: () => _openChat(context),
-                  tooltip: 'Chat',
                 ),
                 _IconBtn(
                   icon: friend.isFavorite ? Icons.star : Icons.star_border, 
@@ -998,6 +1055,87 @@ class _IconBtn extends StatelessWidget {
   }
 }
 
+/// Botão de chat com bolinha piscando quando há mensagens não lidas desse amigo.
+class _ChatIconWithUnread extends StatefulWidget {
+  final FriendsProvider prov;
+  final String? peerUserId;
+  final Color primary;
+  final VoidCallback onTap;
+
+  const _ChatIconWithUnread({
+    required this.prov,
+    required this.peerUserId,
+    required this.primary,
+    required this.onTap,
+  });
+
+  @override
+  State<_ChatIconWithUnread> createState() => _ChatIconWithUnreadState();
+}
+
+class _ChatIconWithUnreadState extends State<_ChatIconWithUnread>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    )..repeat(reverse: true);
+    _animation = Tween<double>(begin: 0.5, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasUnread = widget.prov.hasUnreadFrom(widget.peerUserId);
+    return SizedBox(
+      width: 32,
+      height: 32,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          IconButton(
+            icon: Icon(Icons.chat_bubble_outline, color: widget.primary, size: 18),
+            onPressed: widget.onTap,
+            padding: EdgeInsets.zero,
+            tooltip: hasUnread ? 'Nova(s) mensagem(ns)' : 'Chat',
+          ),
+          if (hasUnread)
+            Positioned(
+              right: 2,
+              top: 2,
+              child: AnimatedBuilder(
+                animation: _animation,
+                builder: (context, child) {
+                  return Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withOpacity(0.5 + 0.5 * _animation.value),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: const Color(0xFF0A0A0A), width: 1),
+                    ),
+                  );
+                },
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 // SUGESTÕES AGORA COM ESTADO LOCAL PARA O BOTÃO
 class _SuggestionCard extends StatefulWidget {
   final Friend friend;
@@ -1052,7 +1190,7 @@ class _SuggestionCardState extends State<_SuggestionCard> {
                         )
                       : null,
                 ),
-                if (widget.prov.isOnline(widget.friend))
+                if (widget.prov.isBrowsing(widget.friend))
                   Positioned(
                     right: 0,
                     bottom: 0,
@@ -1061,6 +1199,20 @@ class _SuggestionCardState extends State<_SuggestionCard> {
                       height: 12,
                       decoration: BoxDecoration(
                         color: Colors.green,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: const Color(0xFF0A0A0A), width: 1.5),
+                      ),
+                    ),
+                  ),
+                if (widget.prov.isWatching(widget.friend))
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: Colors.orange,
                         shape: BoxShape.circle,
                         border: Border.all(color: const Color(0xFF0A0A0A), width: 1.5),
                       ),

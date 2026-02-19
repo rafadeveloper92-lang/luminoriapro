@@ -2,17 +2,21 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/models/user_profile.dart';
 import '../../../core/services/user_profile_service.dart';
 import '../../../core/services/admin_auth_service.dart';
 import '../../../core/config/license_config.dart';
+import '../border_definitions.dart';
 
 /// Provider do perfil do usuário: tudo autenticado e salvo no Supabase (nada local).
+/// Realtime: ao abrir a tela de perfil, inscreve em user_profiles para atualizar na hora.
 class ProfileProvider extends ChangeNotifier {
   final UserProfileService _service = UserProfileService.instance;
 
   UserProfile? _profile;
+  RealtimeChannel? _realtimeChannel;
   bool _isLoading = false;
   String? _error;
 
@@ -51,6 +55,18 @@ class ProfileProvider extends ChangeNotifier {
   /// XP atual (para patentes/badges).
   int get xp => _profile?.xp ?? 0;
 
+  /// Moedas virtuais (Luminárias) para a loja.
+  int get coins => _profile?.coins ?? 0;
+
+  /// Borda de avatar equipada (item_key, ex.: border_rainbow).
+  String? get equippedBorderKey => _profile?.equippedBorderKey;
+
+  /// Tema de perfil equipado (theme_key, ex.: stranger_things).
+  String? get equippedThemeKey => _profile?.equippedThemeKey;
+
+  /// Se música de fundo do tema está habilitada.
+  bool get themeMusicEnabled => _profile?.themeMusicEnabled ?? true;
+
   /// Até 4 gêneros favoritos.
   List<String> get favoriteGenres => _profile?.favoriteGenres ?? const [];
 
@@ -60,15 +76,29 @@ class ProfileProvider extends ChangeNotifier {
   String? get city => _profile?.city;
 
   /// Reporta tempo assistido: adiciona XP (1 por minuto) e horas ao perfil no Supabase;
-  /// também soma minutos no mês atual para o ranking global.
-  Future<void> reportWatchSession(Duration watched) async {
+  /// também soma minutos no mês atual para o ranking global (monthly_watch_time).
+  /// Se [forVod] for true (filme/série), adiciona 1 moeda por minuto ao saldo do usuário.
+  Future<void> reportWatchSession(Duration watched, {bool forVod = false}) async {
     final userId = currentUserId;
-    if (userId == null || !LicenseConfig.isConfigured) return;
+    if (userId == null) {
+      if (kDebugMode) debugPrint('[ProfileProvider.reportWatchSession] Ignorado: utilizador não logado (currentUserId null).');
+      return;
+    }
+    if (!LicenseConfig.isConfigured) {
+      if (kDebugMode) debugPrint('[ProfileProvider.reportWatchSession] Ignorado: Supabase não configurado (LicenseConfig).');
+      return;
+    }
     final minutes = watched.inMinutes;
-    if (minutes < 1) return;
+    if (minutes < 1) {
+      if (kDebugMode) debugPrint('[ProfileProvider.reportWatchSession] Ignorado: minutos=$minutes (< 1).');
+      return;
+    }
     final xpDelta = minutes;
     final hoursDelta = minutes / 60.0;
-    final p = _profile ?? UserProfile(userId: userId);
+    final p = _profile ?? UserProfile(
+      userId: userId,
+      equippedBorderKey: kDefaultBorder.id, // Borda padrão para novos perfis
+    );
     final updated = p.copyWith(
       xp: p.xp + xpDelta,
       watchHours: p.watchHours + hoursDelta,
@@ -79,7 +109,22 @@ class ProfileProvider extends ChangeNotifier {
       _profile = saved;
       notifyListeners();
     }
-    await _service.addMonthlyWatchMinutes(minutes);
+    final rankOk = await _service.addMonthlyWatchMinutes(minutes);
+    if (kDebugMode) {
+      debugPrint('[ProfileProvider.reportWatchSession] reportado $minutes min. Ranking global (monthly_watch_time): ${rankOk ? "OK" : "FALHOU"}.');
+    }
+    // Moedas: 1 por minuto ao assistir filme/série (VOD)
+    if (forVod) {
+      final coinsOk = await _service.addCoinsFromWatch(minutes);
+      if (coinsOk) {
+        final refreshed = await _service.getProfile(userId);
+        if (refreshed != null) {
+          _profile = refreshed;
+          notifyListeners();
+        }
+      }
+      if (kDebugMode) debugPrint('[ProfileProvider.reportWatchSession] VOD: +$minutes moedas. ${coinsOk ? "OK" : "FALHOU"}.');
+    }
   }
 
   /// Salva perfil completo (nome, bio, gêneros, estado civil, país, cidade).
@@ -97,7 +142,12 @@ class ProfileProvider extends ChangeNotifier {
       notifyListeners();
       return false;
     }
-    final p = _profile ?? UserProfile(userId: userId, displayName: displayName, bio: bio);
+    final p = _profile ?? UserProfile(
+      userId: userId,
+      displayName: displayName,
+      bio: bio,
+      equippedBorderKey: kDefaultBorder.id, // Borda padrão para novos perfis
+    );
     final genres = (favoriteGenres ?? p.favoriteGenres).take(4).toList();
     final updated = p.copyWith(
       displayName: displayName.isEmpty ? null : displayName,
@@ -106,6 +156,7 @@ class ProfileProvider extends ChangeNotifier {
       maritalStatus: maritalStatus,
       countryCode: countryCode,
       city: city,
+      equippedBorderKey: p.equippedBorderKey ?? kDefaultBorder.id, // Garantir borda padrão
       updatedAt: DateTime.now(),
     );
     final saved = await _service.saveProfile(updated);
@@ -130,15 +181,77 @@ class ProfileProvider extends ChangeNotifier {
     if (userId != null && LicenseConfig.isConfigured) {
       final p = await _service.getProfile(userId);
       if (p != null) {
-        _profile = p;
+        // Se o perfil existe mas não tem borda, aplicar borda padrão
+        if (p.equippedBorderKey == null || p.equippedBorderKey!.isEmpty) {
+          await _service.updateEquippedBorder(userId, kDefaultBorder.id);
+          _profile = p.copyWith(equippedBorderKey: kDefaultBorder.id);
+        } else {
+          _profile = p;
+        }
       } else {
-        _profile = UserProfile(userId: userId, displayName: currentUserEmail?.split('@').first);
+        // Novo perfil: criar com borda padrão
+        final newProfile = UserProfile(
+          userId: userId,
+          displayName: currentUserEmail?.split('@').first,
+          equippedBorderKey: kDefaultBorder.id,
+        );
+        final saved = await _service.saveProfile(newProfile);
+        _profile = saved ?? newProfile;
       }
     } else {
       _profile = null;
     }
     _isLoading = false;
     notifyListeners();
+  }
+
+  /// Inscreve em alterações do próprio perfil (user_profiles) para atualizar a tela em tempo real.
+  /// [onProfileUpdated] chamado após recarregar o perfil (ex.: atualizar tema).
+  void startRealtimeSubscription(void Function()? onProfileUpdated) {
+    final userId = currentUserId;
+    if (userId == null || userId.isEmpty || !LicenseConfig.isConfigured) return;
+    try {
+      final client = Supabase.instance.client;
+      _realtimeChannel = client.channel('user_profile_$userId');
+      _realtimeChannel!
+          .onPostgresChanges(
+            event: PostgresChangeEvent.update,
+            schema: 'public',
+            table: 'user_profiles',
+            filter: PostgresChangeFilter(
+              type: PostgresChangeFilterType.eq,
+              column: 'user_id',
+              value: userId,
+            ),
+            callback: (_) async {
+              await loadProfile();
+              onProfileUpdated?.call();
+            },
+          )
+          .onPostgresChanges(
+            event: PostgresChangeEvent.insert,
+            schema: 'public',
+            table: 'user_profiles',
+            filter: PostgresChangeFilter(
+              type: PostgresChangeFilterType.eq,
+              column: 'user_id',
+              value: userId,
+            ),
+            callback: (_) async {
+              await loadProfile();
+              onProfileUpdated?.call();
+            },
+          )
+          .subscribe();
+    } catch (_) {}
+  }
+
+  /// Cancela a inscrição Realtime. Chamar ao sair da tela de perfil.
+  Future<void> stopRealtimeSubscription() async {
+    if (_realtimeChannel != null) {
+      await _realtimeChannel!.unsubscribe();
+      _realtimeChannel = null;
+    }
   }
 
   /// Salva nome e bio no Supabase. Só funciona com usuário logado.
@@ -149,8 +262,18 @@ class ProfileProvider extends ChangeNotifier {
       notifyListeners();
       return false;
     }
-    final p = _profile ?? UserProfile(userId: userId, displayName: name, bio: bio);
-    final updated = p.copyWith(displayName: name.isEmpty ? null : name, bio: bio.isEmpty ? null : bio, updatedAt: DateTime.now());
+    final p = _profile ?? UserProfile(
+      userId: userId,
+      displayName: name,
+      bio: bio,
+      equippedBorderKey: kDefaultBorder.id, // Borda padrão para novos perfis
+    );
+    final updated = p.copyWith(
+      displayName: name.isEmpty ? null : name,
+      bio: bio.isEmpty ? null : bio,
+      equippedBorderKey: p.equippedBorderKey ?? kDefaultBorder.id, // Garantir borda padrão
+      updatedAt: DateTime.now(),
+    );
     final saved = await _service.saveProfile(updated);
     if (saved != null) {
       _profile = saved;
@@ -225,8 +348,15 @@ class ProfileProvider extends ChangeNotifier {
       }
 
       final url = uploadResult;
-      final p = _profile ?? UserProfile(userId: userId);
-      final updated = p.copyWith(avatarUrl: url, updatedAt: DateTime.now());
+      final p = _profile ?? UserProfile(
+        userId: userId,
+        equippedBorderKey: kDefaultBorder.id, // Borda padrão para novos perfis
+      );
+      final updated = p.copyWith(
+        avatarUrl: url,
+        equippedBorderKey: p.equippedBorderKey ?? kDefaultBorder.id, // Garantir borda padrão
+        updatedAt: DateTime.now(),
+      );
       if (kDebugMode) debugPrint('[Avatar] Salvando perfil com avatarUrl=$url');
       final saved = await _service.saveProfile(updated);
       if (saved != null) {
@@ -285,8 +415,15 @@ class ProfileProvider extends ChangeNotifier {
       notifyListeners();
       return false;
     }
-    final p = _profile ?? UserProfile(userId: userId);
-    final updated = p.copyWith(coverUrl: url, updatedAt: DateTime.now());
+    final p = _profile ?? UserProfile(
+      userId: userId,
+      equippedBorderKey: kDefaultBorder.id, // Borda padrão para novos perfis
+    );
+    final updated = p.copyWith(
+      coverUrl: url,
+      equippedBorderKey: p.equippedBorderKey ?? kDefaultBorder.id, // Garantir borda padrão
+      updatedAt: DateTime.now(),
+    );
     final saved = await _service.saveProfile(updated);
     if (saved != null) {
       _profile = saved;
@@ -301,11 +438,32 @@ class ProfileProvider extends ChangeNotifier {
   Future<bool> setCoverFromPreset(String coverUrl) async {
     final userId = currentUserId;
     if (userId == null || !LicenseConfig.isConfigured) return false;
-    final p = _profile ?? UserProfile(userId: userId);
-    final updated = p.copyWith(coverUrl: coverUrl, updatedAt: DateTime.now());
+    final p = _profile ?? UserProfile(
+      userId: userId,
+      equippedBorderKey: kDefaultBorder.id, // Borda padrão para novos perfis
+    );
+    final updated = p.copyWith(
+      coverUrl: coverUrl,
+      equippedBorderKey: p.equippedBorderKey ?? kDefaultBorder.id, // Garantir borda padrão
+      updatedAt: DateTime.now(),
+    );
     final saved = await _service.saveProfile(updated);
     if (saved != null) {
       _profile = saved;
+      _error = null;
+      notifyListeners();
+      return true;
+    }
+    return false;
+  }
+
+  /// Define a borda de avatar equipada (null = desequipar). Atualiza no Supabase e no estado local.
+  Future<bool> setEquippedBorder(String? borderKey) async {
+    final userId = currentUserId;
+    if (userId == null || !LicenseConfig.isConfigured) return false;
+    final updated = await _service.updateEquippedBorder(userId, borderKey);
+    if (updated != null) {
+      _profile = updated;
       _error = null;
       notifyListeners();
       return true;

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -23,8 +24,10 @@ class FriendsProvider extends ChangeNotifier {
   bool _isLoading = false;
   bool _isSearching = false;
   int _unreadMessagesCount = 0;
+  Map<String, int> _unreadBySender = {};
 
   RealtimeChannel? _realtimeChannel;
+  Timer? _statusRefreshTimer;
 
   void _onIncomingMessageForBadge(DirectMessage msg) {
     _refreshUnreadCount();
@@ -35,7 +38,7 @@ class FriendsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Inicia inscrições Realtime (solicitações de amizade e badge de mensagens). Chamar ao abrir o painel.
+  /// Inicia inscrições Realtime (solicitações, lista de amigos, status/Assistindo) e atualização periódica.
   void startRealtimeSubscriptions() {
     if (!LicenseConfig.isConfigured) return;
     final userId = AdminAuthService.instance.currentUserId;
@@ -43,7 +46,8 @@ class FriendsProvider extends ChangeNotifier {
 
     try {
       final client = Supabase.instance.client;
-      _realtimeChannel = client.channel('friend_requests_$userId');
+      _realtimeChannel = client.channel('friends_panel_$userId');
+      // Novas solicitações recebidas
       _realtimeChannel!.onPostgresChanges(
         event: PostgresChangeEvent.insert,
         schema: 'public',
@@ -56,14 +60,106 @@ class FriendsProvider extends ChangeNotifier {
         callback: (_) {
           loadAll();
         },
-      ).subscribe();
+      )
+          // Solicitação aceita/rejeitada/cancelada (removida)
+          .onPostgresChanges(
+            event: PostgresChangeEvent.delete,
+            schema: 'public',
+            table: 'friend_requests',
+            filter: PostgresChangeFilter(
+              type: PostgresChangeFilterType.eq,
+              column: 'to_user_id',
+              value: userId,
+            ),
+            callback: (_) {
+              loadAll();
+            },
+          )
+          .onPostgresChanges(
+            event: PostgresChangeEvent.delete,
+            schema: 'public',
+            table: 'friend_requests',
+            filter: PostgresChangeFilter(
+              type: PostgresChangeFilterType.eq,
+              column: 'from_user_id',
+              value: userId,
+            ),
+            callback: (_) {
+              loadAll();
+            },
+          )
+          // Lista de amigos: novo amigo ou amizade removida
+          .onPostgresChanges(
+            event: PostgresChangeEvent.insert,
+            schema: 'public',
+            table: 'friends',
+            filter: PostgresChangeFilter(
+              type: PostgresChangeFilterType.eq,
+              column: 'user_id',
+              value: userId,
+            ),
+            callback: (_) {
+              loadAll();
+            },
+          )
+          .onPostgresChanges(
+            event: PostgresChangeEvent.delete,
+            schema: 'public',
+            table: 'friends',
+            filter: PostgresChangeFilter(
+              type: PostgresChangeFilterType.eq,
+              column: 'user_id',
+              value: userId,
+            ),
+            callback: (_) {
+              loadAll();
+            },
+          )
+          .onPostgresChanges(
+            event: PostgresChangeEvent.update,
+            schema: 'public',
+            table: 'friends',
+            filter: PostgresChangeFilter(
+              type: PostgresChangeFilterType.eq,
+              column: 'user_id',
+              value: userId,
+            ),
+            callback: (_) {
+              loadAll();
+            },
+          )
+          // Status online/offline e "Assistindo" dos usuários
+          .onPostgresChanges(
+            event: PostgresChangeEvent.update,
+            schema: 'public',
+            table: 'user_status',
+            callback: (_) {
+              loadAll();
+            },
+          )
+          .onPostgresChanges(
+            event: PostgresChangeEvent.insert,
+            schema: 'public',
+            table: 'user_status',
+            callback: (_) {
+              loadAll();
+            },
+          )
+          .subscribe();
     } catch (_) {}
 
     DirectMessageService.instance.addIncomingMessageListener(_onIncomingMessageForBadge);
+
+    _statusRefreshTimer?.cancel();
+    _statusRefreshTimer = Timer.periodic(const Duration(seconds: 25), (_) {
+      loadAll();
+    });
   }
 
-  /// Para as inscrições Realtime. Chamar ao fechar o painel.
+  /// Para as inscrições Realtime e o timer. Chamar ao fechar o painel.
   Future<void> stopRealtimeSubscriptions() async {
+    _statusRefreshTimer?.cancel();
+    _statusRefreshTimer = null;
     if (_realtimeChannel != null) {
       await _realtimeChannel!.unsubscribe();
       _realtimeChannel = null;
@@ -84,12 +180,42 @@ class FriendsProvider extends ChangeNotifier {
   List<Friend> get searchResults => _searchResults;
   int get unreadMessagesCount => _unreadMessagesCount;
 
+  /// Verifica se há mensagens não lidas desse amigo (peerUserId = id do outro usuário).
+  bool hasUnreadFrom(String? peerUserId) {
+    if (peerUserId == null || peerUserId.isEmpty) return false;
+    return (_unreadBySender[peerUserId] ?? 0) > 0;
+  }
+
+  /// Quantidade de não lidas desse amigo.
+  int unreadCountFrom(String? peerUserId) {
+    if (peerUserId == null || peerUserId.isEmpty) return 0;
+    return _unreadBySender[peerUserId] ?? 0;
+  }
+
+  /// Atualiza totais e contagem por amigo (ex.: após abrir um chat e marcar como lido).
+  Future<void> refreshUnreadCount() async {
+    await _refreshUnreadCount();
+  }
+
+  /// Marca como lidas as mensagens desse amigo (chamar ao abrir o chat). Atualização otimista na UI.
+  void clearUnreadFrom(String? peerUserId) {
+    if (peerUserId == null || peerUserId.isEmpty) return;
+    final removed = _unreadBySender[peerUserId] ?? 0;
+    _unreadBySender = Map.from(_unreadBySender)..remove(peerUserId);
+    _unreadMessagesCount = ((_unreadMessagesCount - removed).clamp(0, 0x7FFFFFFF)).toInt();
+    notifyListeners();
+  }
+
   int get totalFriendsCount => _friends.length;
   int get pendingRequestsCount => _requests.length;
 
+  /// Carrega lista de amigos. Na primeira vez mostra loading; se já tiver dados, abre de imediato e atualiza em segundo plano.
   Future<void> loadAll() async {
-    _isLoading = true;
-    notifyListeners();
+    final isFirstLoad = _friends.isEmpty && _requests.isEmpty;
+    if (isFirstLoad) {
+      _isLoading = true;
+      notifyListeners();
+    }
 
     try {
       _favorites = await _service.getFavoriteFriends();
@@ -99,6 +225,7 @@ class FriendsProvider extends ChangeNotifier {
       _playingContent = await _service.getUserPlayingContent();
       _friends = await _service.getFriendsFiltered(filter: _filter, searchQuery: _searchQuery.isEmpty ? null : _searchQuery);
       _unreadMessagesCount = await DirectMessageService.instance.getUnreadCount();
+      _unreadBySender = await DirectMessageService.instance.getUnreadCountBySender();
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -178,6 +305,7 @@ class FriendsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Texto do status. Só mostra "Online" quando isOnline(f) é true (evita "Online" sem bolinha).
   String getStatusLabel(Friend f) {
     if (f.playingContent != null && f.playingContent!.isNotEmpty) {
       return 'Assistindo: ${f.playingContent}';
@@ -185,28 +313,37 @@ class FriendsProvider extends ChangeNotifier {
     if (f.status == FriendStatus.playing && f.playingGame != null) {
       return 'Jogando: ${f.playingGame}';
     }
-    if (f.status == FriendStatus.online) return 'Online';
-    if (f.status == FriendStatus.playing) return 'Online';
     if (f.status == FriendStatus.busy) return 'Ocupado';
+    // Só "Online" se realmente considerado online (lastSeenAt recente ou null)
+    if (isOnline(f)) return 'Online';
     if (f.lastSeenAt != null) {
       final diff = DateTime.now().difference(f.lastSeenAt!);
       if (diff.inMinutes < 60) return 'Visto há ${diff.inMinutes}m';
       if (diff.inHours < 24) return 'Visto há ${diff.inHours}h';
-      return 'Offline';
     }
     return 'Offline';
   }
 
-  /// Considera online apenas se status é online/playing E (sem lastSeenAt OU visto nos últimos 5 min).
-  /// Evita bolinha verde para quem fechou o app há tempo.
+  /// Online no app (navegando ou assistindo). Considera lastSeenAt nos últimos 5 min.
   bool isOnline(Friend f) {
     if (f.status == FriendStatus.offline || f.status == FriendStatus.busy) return false;
-    if (f.playingContent != null && f.playingContent!.isNotEmpty) return true; // assistindo agora
+    if (f.playingContent != null && f.playingContent!.isNotEmpty) return true;
     if (f.status == FriendStatus.playing) return true;
     if (f.status == FriendStatus.online) {
       if (f.lastSeenAt != null && DateTime.now().difference(f.lastSeenAt!).inMinutes >= 5) return false;
       return true;
     }
     return false;
+  }
+
+  /// Verdadeiro quando está assistindo filme/série/TV (playing_content preenchido).
+  /// Usado para mostrar bolinha laranja em vez de verde.
+  bool isWatching(Friend f) {
+    return f.playingContent != null && f.playingContent!.isNotEmpty;
+  }
+
+  /// No app mas não assistindo (navegando, catálogos). Só esses mostram bolinha verde.
+  bool isBrowsing(Friend f) {
+    return isOnline(f) && !isWatching(f);
   }
 }

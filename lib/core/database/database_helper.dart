@@ -9,7 +9,7 @@ import '../services/service_locator.dart';
 class DatabaseHelper {
   static Database? _database;
   static const String _databaseName = 'flutter_iptv.db';
-  static const int _databaseVersion = 10; // friends migrado para Supabase (tabelas locais v9/v10 obsoletas)
+  static const int _databaseVersion = 11; // vod_watch_history no onCreate + migração para quem já tinha v10
 
   Future<void> initialize() async {
     ServiceLocator.log.d('DatabaseHelper: 开始初始化数据库');
@@ -148,6 +148,19 @@ class DatabaseHelper {
         created_at INTEGER NOT NULL
       )
     ''');
+
+    // VOD watch history (filmes/séries assistidos — timeline do perfil)
+    await db.execute('''
+      CREATE TABLE vod_watch_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        stream_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        poster_url TEXT,
+        content_type TEXT DEFAULT 'movie',
+        watched_at INTEGER NOT NULL
+      )
+    ''');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_vod_watch_history_at ON vod_watch_history(watched_at DESC)');
 
     // Create indexes for better performance
     await db.execute('CREATE INDEX idx_channels_playlist ON channels(playlist_id)');

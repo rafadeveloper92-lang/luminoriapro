@@ -75,7 +75,27 @@ class _GlobalRankPanelState extends State<GlobalRankPanel> {
                     return Center(child: CircularProgressIndicator(color: primary));
                   }
                   if (prov.top20.isEmpty) {
-                    return const Center(child: Text('Ninguém no ranking este mês.', style: TextStyle(color: Colors.white54)));
+                    return Center(
+                      child: SingleChildScrollView(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Text('Ninguém no ranking este mês.', style: TextStyle(color: Colors.white54)),
+                              if (prov.lastError != null) ...[
+                                const SizedBox(height: 12),
+                                Text(
+                                  prov.lastError!,
+                                  style: TextStyle(color: Colors.orange.shade200, fontSize: 11),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
                   }
                   return ListView.builder(
                     padding: const EdgeInsets.symmetric(vertical: 8),

@@ -261,6 +261,11 @@ class AppStrings {
   String get checkUpdate => _localizedValues['checkUpdate']!;
   String get checkUpdateSubtitle => _localizedValues['checkUpdateSubtitle']!;
   String get checkingUpdate => _localizedValues['checkingUpdate']!;
+  String get launcherCheckingResources => _localizedValues['launcherCheckingResources']!;
+  String get launcherDownloadingUpdate => _localizedValues['launcherDownloadingUpdate']!;
+  String get launcherSyncingAccount => _localizedValues['launcherSyncingAccount']!;
+  String get launcherReady => _localizedValues['launcherReady']!;
+  String get launcherEnter => _localizedValues['launcherEnter']!;
   String get colorScheme => _localizedValues['colorScheme']!;
   String get selectColorScheme => _localizedValues['selectColorScheme']!;
   String get customColorPicker => _localizedValues['customColorPicker']!;
@@ -341,6 +346,7 @@ class AppStrings {
   String get whatsNew => _localizedValues['whatsNew']!;
   String get updateLater => _localizedValues['updateLater']!;
   String get updateNow => _localizedValues['updateNow']!;
+  String get downloadComplete => _localizedValues['downloadComplete']!;
   String get logsCleared => _localizedValues['logsCleared']!;
   String get clearLogsConfirm => _localizedValues['clearLogsConfirm']!;
   String get clearLogsConfirmMessage => _localizedValues['clearLogsConfirmMessage']!;
@@ -626,6 +632,11 @@ class _AppStringsDelegate extends LocalizationsDelegate<AppStrings> {
     'checkUpdate': '更新',
     'checkUpdateSubtitle': '副标题',
     'checkingUpdate': '正在检查更新...',
+    'launcherCheckingResources': '正在验证资源...',
+    'launcherDownloadingUpdate': '正在下载更新...',
+    'launcherSyncingAccount': '正在同步账户...',
+    'launcherReady': '准备就绪。',
+    'launcherEnter': '进入',
     'colorScheme': '配色',
     'selectColorScheme': '选择',
     'customColorPicker': '拾色器',
@@ -706,6 +717,7 @@ class _AppStringsDelegate extends LocalizationsDelegate<AppStrings> {
     'whatsNew': '内容',
     'updateLater': '稍后',
     'updateNow': '现在',
+    'downloadComplete': '下载完成',
     'logsCleared': '清除',
     'clearLogsConfirm': '清除',
     'clearLogsConfirmMessage': '确定?',
@@ -967,6 +979,11 @@ class _AppStringsDelegate extends LocalizationsDelegate<AppStrings> {
     'checkUpdate': 'Update',
     'checkUpdateSubtitle': 'Subtitle',
     'checkingUpdate': 'Checking for updates...',
+    'launcherCheckingResources': 'Checking resources...',
+    'launcherDownloadingUpdate': 'Downloading update...',
+    'launcherSyncingAccount': 'Syncing account...',
+    'launcherReady': 'Ready.',
+    'launcherEnter': 'ENTER',
     'colorScheme': 'Color Scheme',
     'selectColorScheme': 'Select Color Scheme',
     'customColorPicker': 'Picker',
@@ -1047,6 +1064,7 @@ class _AppStringsDelegate extends LocalizationsDelegate<AppStrings> {
     'whatsNew': 'News',
     'updateLater': 'Later',
     'updateNow': 'Now',
+    'downloadComplete': 'Download complete',
     'logsCleared': 'Cleared',
     'clearLogsConfirm': 'Clear',
     'clearLogsConfirmMessage': 'Confirm?',
@@ -1302,6 +1320,11 @@ class _AppStringsDelegate extends LocalizationsDelegate<AppStrings> {
     'runInBackground': 'Executar em Segundo Plano',
     'movedToUnavailable': 'Movidos {count} canais indisponíveis para categoria Indisponível',
     'checkingUpdate': 'Verificando atualizações...',
+    'launcherCheckingResources': 'Verificando recursos...',
+    'launcherDownloadingUpdate': 'Baixando atualização...',
+    'launcherSyncingAccount': 'Sincronizando conta...',
+    'launcherReady': 'Pronto.',
+    'launcherEnter': 'ENTRAR',
     'alreadyLatestVersion': 'Já está na versão mais recente',
     'checkUpdateFailed': 'Falha ao verificar atualização: {error}',
     'updateFailed': 'Falha na atualização: {error}',

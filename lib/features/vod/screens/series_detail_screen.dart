@@ -122,6 +122,7 @@ class _SeriesDetailScreenState extends State<SeriesDetailScreen> {
         'channelUrl': url,
         'channelName': '${widget.series.name} - S${episode.season}E${episode.episodeNum} - ${episode.title}',
         'channelLogo': widget.series.streamIcon,
+        'isVod': true,
       },
     );
   }

@@ -1,7 +1,9 @@
 import 'package:flutter/foundation.dart';
 import '../../../core/models/channel.dart';
 import '../../../core/models/xtream_models.dart';
+import '../../../core/services/admin_auth_service.dart';
 import '../../../core/services/service_locator.dart';
+import '../../../core/services/user_profile_service.dart';
 
 class FavoritesProvider extends ChangeNotifier {
   List<Channel> _favorites = [];
@@ -72,6 +74,7 @@ class FavoritesProvider extends ChangeNotifier {
 
       ServiceLocator.log.d('加载了 ${_favorites.length} 个收藏频道');
       _error = null;
+      await _syncFavoriteCountsToSupabase();
     } catch (e) {
       _error = 'Failed to load favorites: $e';
       _favorites = [];
@@ -79,8 +82,20 @@ class FavoritesProvider extends ChangeNotifier {
     }
 
     await _loadVodFavorites();
+    await _syncFavoriteCountsToSupabase();
     _isLoading = false;
     notifyListeners();
+  }
+
+  /// Sincroniza contagens de favoritos com o perfil no Supabase (para outros verem no perfil).
+  Future<void> _syncFavoriteCountsToSupabase() async {
+    final userId = AdminAuthService.instance.currentUserId;
+    if (userId == null || userId.isEmpty) return;
+    await UserProfileService.instance.updateFavoriteCounts(
+      userId,
+      _favorites.length,
+      _vodFavorites.length,
+    );
   }
 
   Future<void> _loadVodFavorites() async {
@@ -136,6 +151,7 @@ class FavoritesProvider extends ChangeNotifier {
         'icon_url': item.streamIcon,
         'container_extension': item.containerExtension,
       });
+      await _syncFavoriteCountsToSupabase();
       notifyListeners();
       return true;
     } catch (e) {
@@ -153,6 +169,7 @@ class FavoritesProvider extends ChangeNotifier {
         whereArgs: [streamId],
       );
       _vodFavorites.removeWhere((v) => v['stream_id'] == streamId);
+      await _syncFavoriteCountsToSupabase();
       notifyListeners();
       return true;
     } catch (e) {
@@ -193,10 +210,9 @@ class FavoritesProvider extends ChangeNotifier {
         'created_at': DateTime.now().millisecondsSinceEpoch,
       });
 
-      // Update local list
       _favorites.add(channel.copyWith(isFavorite: true));
+      await _syncFavoriteCountsToSupabase();
       notifyListeners();
-
       return true;
     } catch (e) {
       _error = 'Failed to add favorite: $e';
@@ -215,8 +231,8 @@ class FavoritesProvider extends ChangeNotifier {
       );
 
       _favorites.removeWhere((c) => c.id == channelId);
+      await _syncFavoriteCountsToSupabase();
       notifyListeners();
-
       return true;
     } catch (e) {
       _error = 'Failed to remove favorite: $e';
@@ -265,7 +281,7 @@ class FavoritesProvider extends ChangeNotifier {
     } catch (e) {
       _error = 'Failed to reorder favorites: $e';
     }
-
+    await _syncFavoriteCountsToSupabase();
     notifyListeners();
   }
 
@@ -274,6 +290,7 @@ class FavoritesProvider extends ChangeNotifier {
     try {
       await ServiceLocator.database.delete('favorites');
       _favorites.clear();
+      await _syncFavoriteCountsToSupabase();
       notifyListeners();
     } catch (e) {
       _error = 'Failed to clear favorites: $e';

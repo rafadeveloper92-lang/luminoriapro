@@ -101,6 +101,18 @@ class FriendsService {
     }
   }
 
+  /// Considera amigo "online" para o filtro da aba ONLINE: assistindo algo, status playing,
+  /// ou status online com lastSeenAt nos últimos 5 minutos (igual à lógica da UI).
+  static bool _isConsideredOnline(Friend f) {
+    if (f.playingContent != null && f.playingContent!.isNotEmpty) return true;
+    if (f.status == FriendStatus.playing) return true;
+    if (f.status == FriendStatus.online) {
+      if (f.lastSeenAt == null) return true;
+      return DateTime.now().difference(f.lastSeenAt!).inMinutes < 5;
+    }
+    return false;
+  }
+
   /// Carrega amigos filtrados (todos, online, pendentes).
   Future<List<Friend>> getFriendsFiltered({
     required FriendsFilter filter,
@@ -117,10 +129,7 @@ class FriendsService {
 
     final all = await getAllFriends();
     List<Friend> filtered = switch (filter) {
-      FriendsFilter.online => all.where((f) =>
-          f.status == FriendStatus.online ||
-          f.status == FriendStatus.playing ||
-          (f.playingContent != null && f.playingContent!.isNotEmpty)).toList(),
+      FriendsFilter.online => all.where((f) => _isConsideredOnline(f)).toList(),
       _ => all,
     };
 
@@ -136,6 +145,20 @@ class FriendsService {
   Future<List<Friend>> getFavoriteFriends() async {
     final all = await getAllFriends();
     return all.where((f) => f.isFavorite).toList();
+  }
+
+  /// Quantidade de amigos de um usuário (para exibir no perfil público/amigo).
+  Future<int> getFriendCountForUser(String userId) async {
+    final client = _client;
+    if (client == null || userId.isEmpty) return 0;
+    try {
+      final res = await client.from(_tableFriends).select('id').eq('user_id', userId);
+      if (res is List) return res.length;
+      return 0;
+    } catch (e) {
+      ServiceLocator.log.e('FriendsService.getFriendCountForUser', tag: 'Friends', error: e);
+      return 0;
+    }
   }
 
   /// Quantidade de solicitações pendentes (para badge).
@@ -468,18 +491,22 @@ class FriendsService {
     }
   }
 
-  /// Atualiza status do usuário.
+  /// Atualiza status do usuário. Ao ir para offline, limpa playing_content para não mostrar "Assistindo" para outros.
   Future<bool> setUserStatus(String status) async {
     final client = _client;
     final userId = _userId;
     if (client == null || userId == null) return false;
 
     try {
-      await client.from(_tableUserStatus).upsert({
+      final Map<String, dynamic> payload = {
         'user_id': userId,
         'status': status,
         'updated_at': DateTime.now().toUtc().toIso8601String(),
-      }, onConflict: 'user_id');
+      };
+      if (status == 'offline') {
+        payload['playing_content'] = null;
+      }
+      await client.from(_tableUserStatus).upsert(payload, onConflict: 'user_id');
       return true;
     } catch (e) {
       ServiceLocator.log.e('FriendsService.setUserStatus', tag: 'Friends', error: e);

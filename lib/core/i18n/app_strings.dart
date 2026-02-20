@@ -346,6 +346,7 @@ class AppStrings {
   String get whatsNew => _localizedValues['whatsNew']!;
   String get updateLater => _localizedValues['updateLater']!;
   String get updateNow => _localizedValues['updateNow']!;
+  String get noReleaseNotes => _localizedValues['noReleaseNotes']!;
   String get downloadComplete => _localizedValues['downloadComplete']!;
   String get logsCleared => _localizedValues['logsCleared']!;
   String get clearLogsConfirm => _localizedValues['clearLogsConfirm']!;
@@ -749,6 +750,7 @@ class _AppStringsDelegate extends LocalizationsDelegate<AppStrings> {
     'whatsNew': '内容',
     'updateLater': '稍后',
     'updateNow': '现在',
+    'noReleaseNotes': '无更新说明',
     'downloadComplete': '下载完成',
     'logsCleared': '清除',
     'clearLogsConfirm': '清除',
@@ -1126,6 +1128,7 @@ class _AppStringsDelegate extends LocalizationsDelegate<AppStrings> {
     'whatsNew': 'News',
     'updateLater': 'Later',
     'updateNow': 'Now',
+    'noReleaseNotes': 'No release notes',
     'downloadComplete': 'Download complete',
     'logsCleared': 'Cleared',
     'clearLogsConfirm': 'Clear',

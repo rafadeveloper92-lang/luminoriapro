@@ -51,7 +51,7 @@ class UpdateDialog extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        AppStrings.of(context)?.newVersionAvailable ?? 'New version available',
+                        AppStrings.of(context)?.newVersionAvailable ?? 'Nova versão disponível',
                         style: const TextStyle(
                           color: AppTheme.textPrimary,
                           fontSize: 20,
@@ -76,7 +76,7 @@ class UpdateDialog extends StatelessWidget {
 
             // 发布说明
             Text(
-              AppStrings.of(context)?.whatsNew ?? 'What\'s new',
+              AppStrings.of(context)?.whatsNew ?? 'O que há de novo',
               style: const TextStyle(
                 color: AppTheme.textPrimary,
                 fontSize: 16,
@@ -88,7 +88,7 @@ class UpdateDialog extends StatelessWidget {
               constraints: const BoxConstraints(maxHeight: 200),
               child: SingleChildScrollView(
                 child: Text(
-                  _formatReleaseNotes(update.releaseNotes),
+                  _formatReleaseNotes(context, update.releaseNotes),
                   style: const TextStyle(
                     color: AppTheme.textSecondary,
                     fontSize: 14,
@@ -114,7 +114,7 @@ class UpdateDialog extends StatelessWidget {
                       ),
                     ),
                     child: Text(
-                      AppStrings.of(context)?.updateLater ?? 'Update later',
+                      AppStrings.of(context)?.updateLater ?? 'Atualizar depois',
                       style: const TextStyle(
                         color: AppTheme.textSecondary,
                         fontSize: 16,
@@ -134,7 +134,7 @@ class UpdateDialog extends StatelessWidget {
                       ),
                     ),
                     child: Text(
-                      AppStrings.of(context)?.updateNow ?? 'Update now',
+                      AppStrings.of(context)?.updateNow ?? 'Atualizar agora',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 16,
@@ -151,10 +151,9 @@ class UpdateDialog extends StatelessWidget {
     );
   }
 
-  String _formatReleaseNotes(String notes) {
+  String _formatReleaseNotes(BuildContext context, String notes) {
     if (notes.isEmpty) {
-      // Can't access context here directly, use a default
-      return 'No release notes';
+      return AppStrings.of(context)?.noReleaseNotes ?? 'Sem notas de lançamento';
     }
 
     // 简单的Markdown格式化

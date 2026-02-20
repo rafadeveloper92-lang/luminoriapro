@@ -9,6 +9,7 @@ import '../../../core/services/service_locator.dart';
 import '../../../core/services/admin_auth_service.dart';
 import '../../../core/services/auto_refresh_service.dart';
 import '../../../core/services/update_service.dart';
+import '../../../core/managers/update_manager.dart';
 import '../../../core/models/app_update.dart';
 import '../../../core/platform/tv_detection_channel.dart';
 import '../../../core/platform/platform_detector.dart';
@@ -108,51 +109,38 @@ class _LauncherScreenState extends State<LauncherScreen> {
       if (!mounted) return;
 
       if (update != null) {
-        _safeSetState(() {
-          _statusMessage = _str(AppStrings.of(context)?.launcherDownloadingUpdate, 'Baixando atualização...');
-        });
-        try {
-          final file = await UpdateService().downloadUpdate(
-            update,
-            onProgress: (p) {
-              if (mounted) setState(() => _progress = 0.3 + 0.6 * p);
-            },
-          );
-          if (file != null && mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(_str(AppStrings.of(context)?.downloadComplete, 'Download concluído. Reinicie para instalar.')),
-                duration: const Duration(seconds: 4),
-              ),
-            );
-          }
-        } catch (_) {}
+        // Mostrar apenas o diálogo de atualização (rosa); não baixar em paralelo.
+        UpdateManager().showUpdateDialog(
+          context,
+          update,
+          onDismiss: () {
+            if (mounted) _continueLaunchSequence();
+          },
+        );
+        return;
       }
-      if (!mounted) return;
-      if (_progress < 0.9) _safeSetState(() => _progress = 0.9);
-
-      _safeSetState(() {
-        _statusMessage = _str(AppStrings.of(context)?.launcherSyncingAccount, 'Sincronizando conta...');
-      });
-      await Future.delayed(const Duration(milliseconds: 300));
-      if (!mounted) return;
-
-      _safeSetState(() {
-        _progress = 1.0;
-        _statusMessage = _str(AppStrings.of(context)?.launcherReady, 'Pronto.');
-      });
-      // Só permitir navegação após um curto delay, para evitar que foco/tecla ativem o botão sozinhos.
-      await Future.delayed(const Duration(milliseconds: 400));
-      if (mounted) setState(() => _allowNavigation = true);
+      _continueLaunchSequence();
     } catch (_) {
-      if (mounted) {
-        setState(() {
-          _progress = 1.0;
-          _statusMessage = 'Pronto.';
-          _allowNavigation = true;
-        });
-      }
+      if (mounted) _continueLaunchSequence();
     }
+  }
+
+  Future<void> _continueLaunchSequence() async {
+    if (!mounted) return;
+    if (_progress < 0.9) _safeSetState(() => _progress = 0.9);
+
+    _safeSetState(() {
+      _statusMessage = _str(AppStrings.of(context)?.launcherSyncingAccount, 'Sincronizando conta...');
+    });
+    await Future.delayed(const Duration(milliseconds: 300));
+    if (!mounted) return;
+
+    _safeSetState(() {
+      _progress = 1.0;
+      _statusMessage = _str(AppStrings.of(context)?.launcherReady, 'Pronto.');
+    });
+    await Future.delayed(const Duration(milliseconds: 400));
+    if (mounted) setState(() => _allowNavigation = true);
   }
 
   void _onEnterPressed() {

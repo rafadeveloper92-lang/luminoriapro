@@ -1,0 +1,13 @@
+# Copie este ficheiro para key.properties e preencha com os seus dados.
+# NUNCA faça commit de key.properties nem da keystore para o Git.
+#
+# storePassword=senha_da_keystore
+# keyPassword=senha_da_key
+# keyAlias=luminora
+# storeFile é relativo à pasta android/app (só o nome do ficheiro se a keystore estiver em android/app/)
+# storeFile=luminora-release.keystore
+
+storePassword=
+keyPassword=
+keyAlias=luminora
+storeFile=luminora-release.keystore

@@ -31,9 +31,10 @@ class AppUpdate {
     final assets = json['assets'] as Map<String, dynamic>? ?? {};
     final changelog = json['changelog'] as Map<String, dynamic>? ?? {};
     
-    // 根据当前语言选择更新日志，默认中文
-    final locale = Platform.localeName.startsWith('zh') ? 'zh' : 'en';
-    final releaseNotes = changelog[locale] ?? changelog['zh'] ?? changelog['en'] ?? '';
+    // 根据当前语言选择更新日志：pt → 葡萄牙语, zh → 中文, 否则 en
+    final localeName = Platform.localeName.toLowerCase();
+    final locale = localeName.startsWith('pt') ? 'pt' : (localeName.startsWith('zh') ? 'zh' : 'en');
+    final releaseNotes = changelog[locale] ?? changelog['pt'] ?? changelog['zh'] ?? changelog['en'] ?? '';
     
     // 根据平台和架构选择下载链接
     final downloadUrl = await _getDownloadUrl(assets);
@@ -54,9 +55,10 @@ class AppUpdate {
     final assets = json['assets'] as Map<String, dynamic>? ?? {};
     final changelog = json['changelog'] as Map<String, dynamic>? ?? {};
     
-    // 根据当前语言选择更新日志，默认中文
-    final locale = Platform.localeName.startsWith('zh') ? 'zh' : 'en';
-    final releaseNotes = changelog[locale] ?? changelog['zh'] ?? changelog['en'] ?? '';
+    // 根据当前语言选择更新日志：pt → 葡萄牙语, zh → 中文, 否则 en
+    final localeName = Platform.localeName.toLowerCase();
+    final locale = localeName.startsWith('pt') ? 'pt' : (localeName.startsWith('zh') ? 'zh' : 'en');
+    final releaseNotes = changelog[locale] ?? changelog['pt'] ?? changelog['zh'] ?? changelog['en'] ?? '';
     
     // 根据平台和架构选择下载链接（同步版本）
     final downloadUrl = _getDownloadUrlSync(assets);

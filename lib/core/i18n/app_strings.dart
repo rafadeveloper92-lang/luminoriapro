@@ -356,6 +356,7 @@ class AppStrings {
   String get runInstallerNow => _localizedValues['runInstallerNow']!;
   String get later => _localizedValues['later']!;
   String get installNow => _localizedValues['installNow']!;
+  String get installerOpened => _localizedValues['installerOpened']!;
   String get logsCleared => _localizedValues['logsCleared']!;
   String get clearLogsConfirm => _localizedValues['clearLogsConfirm']!;
   String get clearLogsConfirmMessage => _localizedValues['clearLogsConfirmMessage']!;

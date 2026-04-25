@@ -151,7 +151,7 @@ jobs:
             echo "Configure KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_PASSWORD and KEY_ALIAS in GitHub Actions secrets."
             exit 1
           fi
-          printf '%s' "$KEYSTORE_BASE64" | base64 -d > android/app/luminora-release.keystore
+          printf '%s' "$KEYSTORE_BASE64" | tr -d '[:space:]' | base64 -d > android/app/luminora-release.keystore
           cat > android/key.properties <<EOF
           storePassword=$KEYSTORE_PASSWORD
           keyPassword=$KEY_PASSWORD

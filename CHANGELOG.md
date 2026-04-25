@@ -5,6 +5,11 @@ All notable changes to FlutterIPTV will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.46] - 2026-04-25
+
+### Fixed
+- Release workflow now normalizes `KEYSTORE_BASE64` before decoding the Android signing keystore.
+
 ## [1.4.45] - 2026-04-25
 
 ### Fixed

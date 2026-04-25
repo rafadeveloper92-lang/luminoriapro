@@ -3,6 +3,7 @@ import 'package:flutter_iptv/core/models/channel.dart';
 import 'package:flutter_iptv/core/models/cinema_room.dart';
 import 'package:flutter_iptv/core/models/xtream_models.dart';
 import 'package:flutter_iptv/core/services/user_favorites_service.dart';
+import 'package:flutter_iptv/features/rank/providers/rank_provider.dart';
 
 void main() {
   test('Channel exposes source and stream type helpers', () {
@@ -107,6 +108,24 @@ void main() {
     expect(
       service.playlistKey(url: 'https://playlist.example.com/a.m3u'),
       'url:https://playlist.example.com/a.m3u',
+    );
+  });
+
+  test('RankUser formats watched time as minutes and hours', () {
+    expect(
+      RankUser(userId: '1', displayName: 'A', hours: 0.3, rank: 1)
+          .watchedTimeLabel(),
+      '18 min assistidos',
+    );
+    expect(
+      RankUser(userId: '1', displayName: 'A', hours: 1.2, rank: 1)
+          .watchedTimeLabel(monthly: true),
+      '1h 12min este mês',
+    );
+    expect(
+      RankUser(userId: '1', displayName: 'A', hours: 0, rank: 1)
+          .watchedTimeLabel(),
+      '0 min assistidos',
     );
   });
 }

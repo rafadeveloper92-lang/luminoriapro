@@ -19,6 +19,25 @@ class RankUser {
     required this.rank,
   });
 
+  int get watchedMinutes => (hours * 60).round();
+  String get watchTimeLabel => watchedTimeLabel();
+  String get monthlyWatchTimeLabel => watchedTimeLabel(monthly: true);
+
+  String watchedTimeLabel({bool monthly = false}) {
+    final suffix = monthly ? ' este mês' : ' assistidos';
+    if (watchedMinutes <= 0) return '0 min$suffix';
+    if (watchedMinutes < 60) {
+      final unit = watchedMinutes == 1 ? 'min' : 'min';
+      return '$watchedMinutes $unit$suffix';
+    }
+
+    final wholeHours = watchedMinutes ~/ 60;
+    final minutes = watchedMinutes % 60;
+    final hourLabel = wholeHours == 1 ? '1h' : '${wholeHours}h';
+    if (minutes == 0) return '$hourLabel$suffix';
+    return '$hourLabel ${minutes}min$suffix';
+  }
+
   factory RankUser.fromMap(Map<String, dynamic> map) {
     // Debug: log do mapa recebido
     if (kDebugMode) {

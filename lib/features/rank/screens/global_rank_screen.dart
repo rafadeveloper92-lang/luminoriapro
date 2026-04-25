@@ -181,7 +181,7 @@ class _FullRankItem extends StatelessWidget {
                   style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
                 ),
                 Text(
-                  '${user.hours.toStringAsFixed(1)} horas este mês',
+                  user.watchedTimeLabel(monthly: true),
                   style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 13),
                 ),
               ],

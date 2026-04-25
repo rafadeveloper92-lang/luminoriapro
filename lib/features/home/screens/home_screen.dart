@@ -46,6 +46,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, RouteAware {
+  static const String _onboardingDoneKey = 'home_onboarding_v1_done';
   int _selectedNavIndex = 0;
   List<Channel> _watchHistoryChannels = [];
   int? _lastPlaylistId;
@@ -82,6 +83,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
       context.read<FavoritesProvider>().addListener(_onFavoritesProviderChanged);
       _loadData();
       _checkPendingOpenFriendsPanel();
+      _maybeShowOnboardingTutorial();
     });
   }
 
@@ -112,6 +114,39 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
         });
       }
     } catch (_) {}
+  }
+
+  Future<void> _maybeShowOnboardingTutorial() async {
+    try {
+      final alreadyDone = ServiceLocator.prefs.getBool(_onboardingDoneKey) ?? false;
+      if (alreadyDone || !mounted) return;
+      await Future.delayed(const Duration(milliseconds: 900));
+      if (!mounted) return;
+      await showGeneralDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        barrierColor: Colors.black.withOpacity(0.76),
+        transitionDuration: const Duration(milliseconds: 320),
+        pageBuilder: (_, __, ___) => HomeOnboardingTutorial(
+          isXtream: context.read<ChannelProvider>().isXtream,
+          onFinish: () async {
+            await ServiceLocator.prefs.setBool(_onboardingDoneKey, true);
+          },
+        ),
+        transitionBuilder: (_, animation, __, child) {
+          final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
+          return FadeTransition(
+            opacity: curved,
+            child: ScaleTransition(
+              scale: Tween<double>(begin: 0.96, end: 1).animate(curved),
+              child: child,
+            ),
+          );
+        },
+      );
+    } catch (e) {
+      ServiceLocator.log.d('Home onboarding failed: $e', tag: 'HomeScreen');
+    }
   }
 
   @override
@@ -1033,6 +1068,290 @@ class _NavItem {
   final IconData icon;
   final String label;
   const _NavItem({required this.icon, required this.label});
+}
+
+class _TutorialStep {
+  final IconData icon;
+  final String title;
+  final String description;
+  final String action;
+
+  const _TutorialStep({
+    required this.icon,
+    required this.title,
+    required this.description,
+    required this.action,
+  });
+}
+
+class HomeOnboardingTutorial extends StatefulWidget {
+  final bool isXtream;
+  final Future<void> Function() onFinish;
+
+  const HomeOnboardingTutorial({
+    super.key,
+    required this.isXtream,
+    required this.onFinish,
+  });
+
+  @override
+  State<HomeOnboardingTutorial> createState() => _HomeOnboardingTutorialState();
+}
+
+class _HomeOnboardingTutorialState extends State<HomeOnboardingTutorial>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _scale;
+  late final Animation<double> _opacity;
+  int _index = 0;
+
+  List<_TutorialStep> get _steps => [
+        const _TutorialStep(
+          icon: Icons.emoji_events_rounded,
+          title: 'Ranking global',
+          description:
+              'Toque no logo/topo do app para abrir o ranking mensal. Ele mostra quem mais assistiu no mês e agora exibe minutos e horas de forma clara.',
+          action: 'Depois do tutorial, toque no topo do app para testar o ranking.',
+        ),
+        const _TutorialStep(
+          icon: Icons.people_rounded,
+          title: 'Amigos e rede social',
+          description:
+              'Use o botão de amigos no topo para ver quem está online, conversar e acompanhar os perfis da sua rede.',
+          action: 'Toque no ícone de pessoas para abrir sua lista de amigos.',
+        ),
+        const _TutorialStep(
+          icon: Icons.person_rounded,
+          title: 'Perfil público',
+          description:
+              'No Perfil você edita nome, avatar, capa, gêneros favoritos e vê seus dados sociais, favoritos e histórico.',
+          action: 'Abra a aba Perfil na barra inferior para personalizar sua conta.',
+        ),
+        const _TutorialStep(
+          icon: Icons.shopping_bag_rounded,
+          title: 'Loja, pontos e trocas',
+          description:
+              'A Loja usa moedas/pontos para desbloquear itens, bordas e personalizações. Você ganha pontos assistindo conteúdos e participando.',
+          action: 'Entre na aba Loja para ver produtos, moedas e itens disponíveis.',
+        ),
+        const _TutorialStep(
+          icon: Icons.inventory_2_rounded,
+          title: 'Temas e inventário',
+          description:
+              'Itens comprados ficam no inventário. Equipe bordas, temas e efeitos para deixar seu perfil com seu estilo.',
+          action: 'No Perfil, procure Inventário e Temas para equipar seus itens.',
+        ),
+        _TutorialStep(
+          icon: widget.isXtream ? Icons.movie_rounded : Icons.live_tv_rounded,
+          title: widget.isXtream ? 'Filmes, séries e favoritos' : 'Canais e favoritos',
+          description: widget.isXtream
+              ? 'Explore filmes e séries, toque no coração para favoritar e acesse tudo depois na aba Favoritos. Seus favoritos ficam salvos no Supabase.'
+              : 'Explore canais ao vivo, favorite seus preferidos e encontre tudo na aba Favoritos. Seus favoritos ficam salvos no Supabase.',
+          action: 'Use o coração nos cards e depois abra a aba Favoritos.',
+        ),
+        const _TutorialStep(
+          icon: Icons.meeting_room_rounded,
+          title: 'Sala de Cinema',
+          description:
+              'Crie ou entre em uma sala para assistir junto com outras pessoas. Quando o host encerra, todos saem da sala automaticamente.',
+          action: 'Toque no ícone de claquete/sala para criar ou entrar em uma Sala de Cinema.',
+        ),
+        const _TutorialStep(
+          icon: Icons.playlist_play_rounded,
+          title: 'Listas e fontes',
+          description:
+              'Em Fontes/Listas você adiciona M3U, Xtream ou outras listas. Essa é a base para carregar canais, filmes e séries.',
+          action: 'Abra Fontes/Listas para adicionar ou trocar sua playlist.',
+        ),
+      ];
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 320),
+    );
+    _scale = CurvedAnimation(parent: _controller, curve: Curves.easeOutBack);
+    _opacity = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _finish() async {
+    await widget.onFinish();
+    if (mounted) Navigator.of(context).pop();
+  }
+
+  Future<void> _next() async {
+    final steps = _steps;
+    if (_index >= steps.length - 1) {
+      await _finish();
+      return;
+    }
+    await _controller.reverse();
+    if (!mounted) return;
+    setState(() => _index++);
+    _controller.forward();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final steps = _steps;
+    final step = steps[_index.clamp(0, steps.length - 1)];
+    final primary = AppTheme.getPrimaryColor(context);
+    final isLast = _index == steps.length - 1;
+
+    return Material(
+      color: Colors.black.withOpacity(0.78),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            children: [
+              Align(
+                alignment: Alignment.topRight,
+                child: TextButton(
+                  onPressed: _finish,
+                  child: const Text('Pular tutorial'),
+                ),
+              ),
+              const Spacer(),
+              FadeTransition(
+                opacity: _opacity,
+                child: ScaleTransition(
+                  scale: _scale,
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(22),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF151515),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: primary.withOpacity(0.35)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: primary.withOpacity(0.18),
+                          blurRadius: 30,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              width: 58,
+                              height: 58,
+                              decoration: BoxDecoration(
+                                gradient: AppTheme.getGradient(context),
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                              child: Icon(step.icon, color: Colors.white, size: 30),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Passo ${_index + 1} de ${steps.length}',
+                                    style: TextStyle(
+                                      color: primary,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    step.title,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 18),
+                        Text(
+                          step.description,
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.78),
+                            fontSize: 15,
+                            height: 1.45,
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: primary.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.touch_app_rounded, color: primary, size: 20),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  step.action,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 22),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: LinearProgressIndicator(
+                                value: (_index + 1) / steps.length,
+                                minHeight: 6,
+                                borderRadius: BorderRadius.circular(99),
+                                backgroundColor: Colors.white12,
+                                color: primary,
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            ElevatedButton(
+                              onPressed: _next,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: primary,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                              ),
+                              child: Text(isLast ? 'Começar' : 'Próximo'),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const Spacer(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _ResponsiveCategoryChips extends StatelessWidget {

@@ -205,7 +205,7 @@ class _RankItem extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  '${user.hours.toStringAsFixed(1)} horas assistidas',
+                  user.watchedTimeLabel(),
                   style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 11),
                 ),
               ],

@@ -1,27 +1,27 @@
 {
-  "version": "1.4.41",
-  "build": 161,
+  "version": "1.4.42",
+  "build": 162,
   "releaseDate": "2026-04-25",
   "assets": {
-    "windows": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.41/flutteriptv-Windows-x64-Setup.exe",
+    "windows": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.42/flutteriptv-Windows-x64-Setup.exe",
     "android_mobile": {
-      "arm64-v8a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.41/flutteriptv-Android-arm64.apk",
-      "armeabi-v7a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.41/flutteriptv-Android-arm64.apk",
-      "x86_64": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.41/flutteriptv-Android-arm64.apk"
+      "arm64-v8a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.42/flutteriptv-Android-arm64.apk",
+      "armeabi-v7a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.42/flutteriptv-Android-arm64.apk",
+      "x86_64": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.42/flutteriptv-Android-arm64.apk"
     },
     "android_tv": {
-      "arm64-v8a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.41/flutteriptv-Android-arm64.apk",
-      "armeabi-v7a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.41/flutteriptv-Android-arm64.apk",
-      "x86_64": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.41/flutteriptv-Android-arm64.apk"
+      "arm64-v8a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.42/flutteriptv-Android-arm64.apk",
+      "armeabi-v7a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.42/flutteriptv-Android-arm64.apk",
+      "x86_64": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.42/flutteriptv-Android-arm64.apk"
     },
     "ios": {
-      "universal": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.41/flutteriptv-iOS-unsigned.ipa"
+      "universal": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.42/flutteriptv-iOS-unsigned.ipa"
     }
   },
   "changelog": {
-    "pt": "Correção: Favoritos de canais, filmes e séries agora são salvos no Supabase por usuário\nCorreção: Encerrar Sala de Cinema não volta mais para a tela de splash em loop\nCorreção: Participantes são desconectados quando o host encerra a Sala de Cinema\nMelhoria: JSON de atualização corrigido e testes básicos fortalecidos",
-    "en": "Fix: Channel, movie and series favorites are now saved per user in Supabase\nFix: Closing a Cinema Room no longer returns to the splash screen loop\nFix: Participants disconnect when the host closes a Cinema Room\nImprovement: Update JSON fixed and basic tests strengthened",
-    "zh": "修复：频道、电影和剧集收藏现在按用户保存到 Supabase\n修复：关闭影院房间不再返回启动页循环\n修复：房主关闭影院房间时参与者会断开连接\n改进：修复更新 JSON 并加强基础测试"
+    "pt": "Correção: Instalador da atualização Android abre corretamente após o download\nCorreção: App abre a tela de permissão para instalar apps desconhecidos quando necessário\nCorreção: Textos da atualização foram traduzidos para português\nCorreção: APK baixado não é apagado antes de concluir a instalação",
+    "en": "Fix: Android update installer opens correctly after download\nFix: App opens the unknown app install permission screen when needed\nFix: Update texts are localized\nFix: Downloaded APK is no longer deleted before installation completes",
+    "zh": "修复：Android 更新下载后可正确打开安装器\n修复：需要时会打开未知来源安装权限页面\n修复：更新界面文本已本地化\n修复：安装完成前不再删除已下载的 APK"
   },
   "minVersion": "1.0.0"
 }

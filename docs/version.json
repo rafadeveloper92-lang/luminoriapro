@@ -1,27 +1,27 @@
 {
-  "version": "1.4.40",
-  "build": 160,
-  "releaseDate": "2026-02-20",
+  "version": "1.4.41",
+  "build": 161,
+  "releaseDate": "2026-04-25",
   "assets": {
-    "windows": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.40/flutteriptv-Windows-x64-Setup.exe",
+    "windows": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.41/flutteriptv-Windows-x64-Setup.exe",
     "android_mobile": {
-      "arm64-v8a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.40/flutteriptv-Android-arm64.apk",
-      "armeabi-v7a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.40/flutteriptv-Android-arm64.apk",
-      "x86_64": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.40/flutteriptv-Android-arm64.apk"
+      "arm64-v8a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.41/flutteriptv-Android-arm64.apk",
+      "armeabi-v7a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.41/flutteriptv-Android-arm64.apk",
+      "x86_64": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.41/flutteriptv-Android-arm64.apk"
     },
     "android_tv": {
-      "arm64-v8a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.40/flutteriptv-Android-arm64.apk",
-      "armeabi-v7a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.40/flutteriptv-Android-arm64.apk",
-      "x86_64": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.40/flutteriptv-Android-arm64.apk"
+      "arm64-v8a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.41/flutteriptv-Android-arm64.apk",
+      "armeabi-v7a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.41/flutteriptv-Android-arm64.apk",
+      "x86_64": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.41/flutteriptv-Android-arm64.apk"
     },
     "ios": {
-      "universal": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.40/flutteriptv-iOS-unsigned.ipa"
+      "universal": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.41/flutteriptv-iOS-unsigned.ipa"
     }
   },
   "changelog": {
-    "pt": "Novo: Ranking global com todos os utilizadores por horas assistidas no mês\nNovo: 1 moeda por minuto ao assistir filmes/séries (VOD)\nCorreção: Aba Amigos ONLINE mostra apenas quem está realmente online\nCorreção: Botão voltar na Loja e no Perfil não fecha a app\nCorreção: Dados de teste do ranking removidos",
-    "en": "New: Global ranking with all users by watch time this month\nNew: 1 coin per minute when watching movies/series (VOD)\nFix: Friends ONLINE tab shows only users actually online\nFix: Back button on Shop and Profile no longer exits app\nFix: Test ranking data removed",
-    "zh": "新增：全球排行榜按本月观看时长排序\n新增：观看电影/剧集每分钟获得1金币\n修复：好友「在线」仅显示真实在线用户\n修复：商店与个人页返回不再退出应用\n修复：移除测试排行榜数据"
+    "pt": "Correção: Favoritos de canais, filmes e séries agora são salvos no Supabase por usuário\nCorreção: Encerrar Sala de Cinema não volta mais para a tela de splash em loop\nCorreção: Participantes são desconectados quando o host encerra a Sala de Cinema\nMelhoria: JSON de atualização corrigido e testes básicos fortalecidos",
+    "en": "Fix: Channel, movie and series favorites are now saved per user in Supabase\nFix: Closing a Cinema Room no longer returns to the splash screen loop\nFix: Participants disconnect when the host closes a Cinema Room\nImprovement: Update JSON fixed and basic tests strengthened",
+    "zh": "修复：频道、电影和剧集收藏现在按用户保存到 Supabase\n修复：关闭影院房间不再返回启动页循环\n修复：房主关闭影院房间时参与者会断开连接\n改进：修复更新 JSON 并加强基础测试"
   },
   "minVersion": "1.0.0"
 }

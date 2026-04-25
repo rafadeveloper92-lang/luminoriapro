@@ -5,6 +5,18 @@ All notable changes to FlutterIPTV will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.41] - 2026-04-25
+
+### Added
+- Supabase-backed user favorites for channels, movies, and series.
+- Initial migration from local favorites cache to Supabase when the cloud list is empty.
+
+### Fixed
+- Fixed Cinema Room exit/close flow returning to the splash update screen.
+- Fixed Cinema Room closure so participants receive a `room_closed` event and leave the room cleanly.
+- Fixed duplicated `changelog` key in `docs/version.json`.
+- Replaced placeholder parser/model tests with coverage for real parser/model behavior.
+
 ## [1.1.30] - 2024-12-21
 
 ### Added

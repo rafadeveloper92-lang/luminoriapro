@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/models/cinema_room.dart';
+import '../../../core/navigation/app_router.dart';
 import '../../../core/platform/platform_detector.dart';
 import '../../../core/services/vod_watch_history_service.dart';
 import '../providers/cinema_room_provider.dart';
@@ -33,6 +34,7 @@ class _CinemaRoomScreenState extends State<CinemaRoomScreen> {
   
   // Flag para evitar loops de navegação ou mensagens duplicadas ao sair
   bool _isExiting = false;
+  bool _navigatedAway = false;
 
   @override
   void initState() {
@@ -149,6 +151,7 @@ class _CinemaRoomScreenState extends State<CinemaRoomScreen> {
   /// Chamado quando a sala deixa de existir (host fechou) e nós ainda estamos nela.
   void _handleRemoteRoomClosure() {
     _isExiting = true;
+    _syncReportTimer?.cancel();
     // Parar player
     try {
       context.read<PlayerProvider>().stop();
@@ -163,8 +166,7 @@ class _CinemaRoomScreenState extends State<CinemaRoomScreen> {
       ),
     );
     
-    // Sair
-    Navigator.of(context).popUntil((route) => route.isFirst);
+    context.read<CinemaRoomProvider>().leaveRoom().whenComplete(_leaveCinemaRoute);
   }
 
   void _startSyncReport(PlayerProvider player, CinemaRoomProvider cinema) {
@@ -366,7 +368,19 @@ class _CinemaRoomScreenState extends State<CinemaRoomScreen> {
     } catch (_) {}
 
     if (!mounted) return;
-    Navigator.of(context).popUntil((route) => route.isFirst);
+    _leaveCinemaRoute();
+  }
+
+  void _leaveCinemaRoute() {
+    if (!mounted || _navigatedAway) return;
+    _navigatedAway = true;
+
+    final navigator = Navigator.of(context);
+    if (navigator.canPop()) {
+      navigator.pop();
+    } else {
+      navigator.pushReplacementNamed(AppRouter.home);
+    }
   }
 
   @override

@@ -36,7 +36,8 @@ class ServiceLocator {
   /// Check if log service is initialized
   static bool get isLogInitialized {
     try {
-      return true; // _logService is always initialized after initPrefs()
+      _logService;
+      return true;
     } catch (e) {
       return false;
     }
@@ -90,8 +91,7 @@ class ServiceLocator {
     try {
       await _logService.flush();
     } catch (e) {
-      // 使用 print 而不是 debugPrint，因为这是在 static 方法中
-      print('ServiceLocator: 刷新日志失败 - $e');
+      // Avoid throwing while the app is shutting down.
     }
     
     await _database.close();

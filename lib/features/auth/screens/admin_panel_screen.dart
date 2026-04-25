@@ -19,6 +19,7 @@ import '../../../core/models/shop_banner.dart';
 import '../../../core/models/profile_theme.dart';
 import '../../profile/border_definitions.dart';
 import '../../profile/theme_presets.dart';
+import '../widgets/admin_home_sports_panel.dart';
 
 /// Filtros da lista de assinaturas.
 enum SubscriptionFilter {
@@ -67,15 +68,15 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 6, vsync: this);
+    _tabController = TabController(length: 7, vsync: this);
     _tabController.addListener(() {
       if (_tabController.index == 1 && !_ticketsLoading && _tickets.isEmpty) _loadTickets();
       if (_tabController.index == 2 && !_paymentEventsLoading && _paymentEvents.isEmpty) _loadPaymentEvents();
       if (_tabController.index == 3 && !_shopOrdersLoading && _shopOrders.isEmpty) _loadShopOrders();
       if (_tabController.index == 3 && !_shopProductsLoading && _shopProducts.isEmpty) _loadShopProducts();
       if (_tabController.index == 3 && !_shopBannersLoading && _shopBanners.isEmpty) _loadShopBanners();
-      if (_tabController.index == 4 && !_themesLoading && _themes.isEmpty) _loadThemes();
-      if (_tabController.index == 5 && !_accountsLoading && _accounts.isEmpty) _loadAccounts();
+            if (_tabController.index == 4 && !_themesLoading && _themes.isEmpty) _loadThemes();
+      if (_tabController.index == 6 && !_accountsLoading && _accounts.isEmpty) _loadAccounts();
     });
     _load();
     _loadAdminStats();
@@ -287,6 +288,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
         ],
         bottom: TabBar(
           controller: _tabController,
+          isScrollable: true,
           onTap: (i) {
             if (i == 1) _loadTickets();
             if (i == 2) _loadPaymentEvents();
@@ -296,7 +298,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
               _loadShopBanners();
             }
             if (i == 4) _loadThemes();
-            if (i == 5) _loadAccounts();
+            if (i == 6) _loadAccounts();
           },
           tabs: [
             Tab(text: 'Assinaturas', icon: const Icon(Icons.people)),
@@ -304,6 +306,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
             Tab(text: 'Pagamentos', icon: const Icon(Icons.payment)),
             Tab(text: 'Loja', icon: const Icon(Icons.shopping_bag)),
             Tab(text: 'Temas', icon: const Icon(Icons.palette)),
+            Tab(text: 'Jogos', icon: const Icon(Icons.sports_soccer_rounded)),
             Tab(text: 'Contas', icon: const Icon(Icons.person_search)),
           ],
         ),
@@ -317,6 +320,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> with SingleTickerPr
           _buildPaymentsTab(context, bg, surface, textPrimary, textSecondary, primary),
           _buildShopTab(context, bg, surface, textPrimary, textSecondary, primary),
           _buildThemesTab(context, bg, surface, textPrimary, textSecondary, primary),
+          const AdminHomeSportsPanel(),
           _buildAccountsTab(context, bg, surface, textPrimary, textSecondary, primary),
         ],
       ),

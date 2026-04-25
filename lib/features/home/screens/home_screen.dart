@@ -36,7 +36,10 @@ import '../../vod/screens/movie_detail_screen.dart';
 import '../../vod/screens/movie_search_screen.dart';
 import '../widgets/movie_preview_card.dart';
 import '../widgets/luminoria_logo.dart';
+import '../widgets/home_sports_carousel.dart';
 import '../../../core/models/channel.dart';
+import '../../../core/models/home_sports_slide.dart';
+import '../../../core/services/home_sports_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -64,6 +67,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
   final TmdbService _tmdbService = TmdbService();
 
   final ScrollController _top10ScrollController = ScrollController();
+
+  List<HomeSportsSlide> _homeSportsSlides = [];
   
   // Gesture detection
   double _dragStartX = 0.0;
@@ -101,6 +106,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
   void didPopNext() {
     super.didPopNext();
     _refreshWatchHistory();
+    _loadHomeSports();
     _checkPendingOpenFriendsPanel();
   }
 
@@ -251,9 +257,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
       await favoritesProvider.loadFavorites();
       _refreshWatchHistory();
       _loadMovieData();
+      _loadHomeSports();
     } else {
         ServiceLocator.log.d('HomeScreen: Still no playlists', tag: 'HomeScreen');
         setState(() => _isLoadingMovies = false);
+        _loadHomeSports();
     }
   }
 
@@ -350,8 +358,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
     } catch (e) {
       ServiceLocator.log.e('Error loading movie data: $e');
     } finally {
-        ServiceLocator.log.d('HomeScreen: _loadMovieData DONE', tag: 'HomeScreen');
+      ServiceLocator.log.d('HomeScreen: _loadMovieData DONE', tag: 'HomeScreen');
         if (mounted) setState(() => _isLoadingMovies = false);
+    }
+  }
+
+  Future<void> _loadHomeSports() async {
+    if (!LicenseConfig.isConfigured) return;
+    try {
+      final slides = await HomeSportsService.instance.fetchSlidesForHome();
+      if (mounted) setState(() => _homeSportsSlides = slides);
+    } catch (_) {
+      if (mounted) setState(() => _homeSportsSlides = []);
     }
   }
 
@@ -637,6 +655,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (_homeSportsSlides.isNotEmpty) HomeSportsCarousel(slides: _homeSportsSlides),
               if (_featuredMovie != null) _buildHeroBanner(),
               const SizedBox(height: 20),
               if (_top10Movies.isNotEmpty) _buildSectionTitle('Top 10 Filmes da Semana'),
@@ -892,8 +911,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
                 slivers: [
                   SliverPadding(
                     padding: EdgeInsets.symmetric(horizontal: PlatformDetector.isMobile ? 12 : 24),
-                    sliver: SliverList(
-                      delegate: SliverChildListDelegate([
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
+                        if (_homeSportsSlides.isNotEmpty) HomeSportsCarousel(slides: _homeSportsSlides),
                         if (_watchHistoryChannels.isNotEmpty)
                           _buildChannelRow(AppStrings.of(context)?.watchHistory ?? 'Watch History', _watchHistoryChannels),
                         ...channelProvider.groups.take(8).toList().asMap().entries.map((entry) {

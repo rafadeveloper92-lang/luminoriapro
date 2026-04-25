@@ -4,3 +4,4 @@ export 'playlist.dart';
 export 'epg_entry.dart';
 export 'channel_logo.dart';
 export 'cinema_room.dart';
+export 'home_sports_slide.dart';

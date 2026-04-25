@@ -357,6 +357,9 @@ class AppStrings {
   String get later => _localizedValues['later']!;
   String get installNow => _localizedValues['installNow']!;
   String get installerOpened => _localizedValues['installerOpened']!;
+  /// Após ativar "instalar apps desconhecidos", o utilizador deve tocar para abrir o instalador de novo (APK fica guardado).
+  String get installPermissionMessage => _localizedValues['installPermissionMessage']!;
+  String get tryInstallAgain => _localizedValues['tryInstallAgain']!;
   String get logsCleared => _localizedValues['logsCleared']!;
   String get clearLogsConfirm => _localizedValues['clearLogsConfirm']!;
   String get clearLogsConfirmMessage => _localizedValues['clearLogsConfirmMessage']!;
@@ -761,6 +764,9 @@ class _AppStringsDelegate extends LocalizationsDelegate<AppStrings> {
     'updateNow': '现在',
     'noReleaseNotes': '无更新说明',
     'downloadComplete': '下载完成',
+    'installerOpened': '已打开安装程序。请确认安装以完成更新。',
+    'installPermissionMessage': '请在设置中允许安装未知应用，然后返回并再次点击“重试安装”。更新文件已保存，无需重新下载。',
+    'tryInstallAgain': '重试安装',
     'logsCleared': '清除',
     'clearLogsConfirm': '清除',
     'clearLogsConfirmMessage': '确定?',
@@ -1139,6 +1145,9 @@ class _AppStringsDelegate extends LocalizationsDelegate<AppStrings> {
     'updateNow': 'Now',
     'noReleaseNotes': 'No release notes',
     'downloadComplete': 'Download complete',
+    'installerOpened': 'Installer opened. Confirm the installation to finish the update.',
+    'installPermissionMessage': 'Allow installing from this source in Settings, then return and tap "Retry install". The file is saved — you do not need to download again.',
+    'tryInstallAgain': 'Retry install',
     'logsCleared': 'Cleared',
     'clearLogsConfirm': 'Clear',
     'clearLogsConfirmMessage': 'Confirm?',
@@ -1438,6 +1447,9 @@ class _AppStringsDelegate extends LocalizationsDelegate<AppStrings> {
     'runInstallerNow': 'Executar instalador agora?',
     'later': 'Mais tarde',
     'installNow': 'Instalar Agora',
+    'installerOpened': 'Instalador aberto. Confirme a instalação para concluir a atualização.',
+    'installPermissionMessage': 'Ative a permissão para instalar apps desconhecidos para esta app nas Definições. Depois volte aqui e toque em \"Tentar instalar de novo\". O ficheiro já está guardado — não precisa de voltar a descarregar.',
+    'tryInstallAgain': 'Tentar instalar de novo',
     'deletedChannels': '{count} canais indisponíveis excluídos',
     'testing': 'Testando: {name}',
     'channelAvailableRestored': '{name} disponível, restaurado para categoria "{group}"',

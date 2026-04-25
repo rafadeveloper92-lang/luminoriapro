@@ -96,8 +96,9 @@ class MainActivity: FlutterFragmentActivity() {
                     val filePath = call.argument<String>("filePath")
                     if (filePath != null) {
                         try {
-                            installApk(filePath)
-                            result.success(true)
+                            // false = abrimos Definições para o utilizador ativar "fontes desconhecidas"; o Flutter deve pedir retry
+                            val started = installApk(filePath)
+                            result.success(started)
                         } catch (e: Exception) {
                             Log.e(TAG, "Failed to install APK", e)
                             result.error("INSTALL_ERROR", e.message, null)
@@ -847,10 +848,10 @@ class MainActivity: FlutterFragmentActivity() {
     }
     
     /**
-     * Install APK file using FileProvider
-     * Permite substituir instalação existente para evitar conflitos
+     * Install APK file using FileProvider.
+     * @return true se o intent do instalador foi iniciado; false se abrimos Definições (permissão "instalar apps desconhecidos" em falta).
      */
-    private fun installApk(filePath: String) {
+    private fun installApk(filePath: String): Boolean {
         Log.d(TAG, "Installing APK: $filePath")
         val file = File(filePath)
         if (!file.exists()) {
@@ -860,14 +861,14 @@ class MainActivity: FlutterFragmentActivity() {
         // Verifica permissão de instalação no Android 8.0+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             if (!packageManager.canRequestPackageInstalls()) {
-                Log.e(TAG, "REQUEST_INSTALL_PACKAGES permission not granted")
+                Log.w(TAG, "REQUEST_INSTALL_PACKAGES not granted — opening app settings")
                 val settingsIntent = Intent(
                     Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
                     Uri.parse("package:$packageName")
                 )
                 settingsIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 startActivity(settingsIntent)
-                throw Exception("Permissão necessária: ative \"Instalar apps desconhecidos\" para o Luminoria e toque em Atualizar novamente.")
+                return false
             }
         }
         
@@ -892,6 +893,7 @@ class MainActivity: FlutterFragmentActivity() {
         try {
             startActivity(intent)
             Log.d(TAG, "APK installation intent started successfully")
+            return true
         } catch (e: android.content.ActivityNotFoundException) {
             Log.e(TAG, "No app found to handle installation", e)
             throw Exception("Nenhum aplicativo encontrado para instalar o APK. Verifique se as fontes desconhecidas estão habilitadas.")

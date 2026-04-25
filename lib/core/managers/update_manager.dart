@@ -224,36 +224,7 @@ class UpdateManager {
 
       if (file != null) {
         ServiceLocator.log.d('UPDATE_MANAGER: 下载完成，开始安装: ${file.path}');
-        try {
-          await _installApk(file.path);
-          
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(AppStrings.of(context)?.installerOpened ?? 'Instalador aberto. Confirme a instalação para concluir a atualização.'),
-                duration: const Duration(seconds: 6),
-              ),
-            );
-          }
-        } catch (installError) {
-          // Erro específico de instalação - mostra mensagem mais clara
-          if (dialogContext != null && dialogContext!.mounted) {
-            Navigator.of(dialogContext!).pop();
-          }
-          if (context.mounted) {
-            final errorMsg = installError.toString();
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(errorMsg.contains('Conflito') || errorMsg.contains('conflito')
-                    ? errorMsg
-                    : 'Falha na instalação: $installError'),
-                backgroundColor: Colors.red,
-                duration: const Duration(seconds: 5),
-              ),
-            );
-          }
-          return;
-        }
+        await _launchAndroidInstallerFlow(context, file);
       } else {
         throw Exception('Falha no download');
       }
@@ -273,15 +244,16 @@ class UpdateManager {
     }
   }
 
-  /// 调用原生方法安装 APK
-  Future<void> _installApk(String filePath) async {
+  /// Abre o instalador do Android; se faltar permissão de "fontes desconhecidas", o nativo abre Definições e devolve [false].
+  Future<bool> _installApk(String filePath) async {
     try {
-      await _installChannel.invokeMethod('installApk', {'filePath': filePath});
+      final result = await _installChannel.invokeMethod<dynamic>('installApk', {'filePath': filePath});
+      if (result is bool) return result;
+      return result == true;
     } catch (e) {
       ServiceLocator.log.d('UPDATE_MANAGER: 安装 APK 失败: $e');
-      // Se o erro for de conflito de instalação, fornece mensagem mais clara
       final errorMsg = e.toString();
-      if (errorMsg.contains('INSTALL_FAILED_UPDATE_INCOMPATIBLE') || 
+      if (errorMsg.contains('INSTALL_FAILED_UPDATE_INCOMPATIBLE') ||
           errorMsg.contains('INSTALL_FAILED_ALREADY_EXISTS') ||
           errorMsg.contains('conflict') ||
           errorMsg.contains('conflito')) {
@@ -289,6 +261,63 @@ class UpdateManager {
       }
       rethrow;
     }
+  }
+
+  /// Instalação com retry após o utilizador conceder permissão (evita re-download e UI presa).
+  Future<void> _launchAndroidInstallerFlow(BuildContext context, File file) async {
+    Future<void> tryOpen() async {
+      try {
+        final started = await _installApk(file.path);
+        if (!context.mounted) return;
+        if (started) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(AppStrings.of(context)?.installerOpened ?? 'Instalador aberto. Confirme a instalação para concluir a atualização.'),
+              duration: const Duration(seconds: 6),
+            ),
+          );
+        } else {
+          final nav = Navigator.maybeOf(context, rootNavigator: true);
+          if (nav != null) {
+            await showDialog<void>(
+              context: context,
+              barrierDismissible: false,
+              builder: (ctx) => AlertDialog(
+                title: Text(AppStrings.of(ctx)?.downloadComplete ?? 'Download concluído'),
+                content: Text(AppStrings.of(ctx)?.installPermissionMessage ?? 'Ative a permissão nas Definições e toque em tentar de novo.'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    child: Text(AppStrings.of(ctx)?.later ?? 'Mais tarde'),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(ctx).pop();
+                      tryOpen();
+                    },
+                    child: Text(AppStrings.of(ctx)?.tryInstallAgain ?? 'Tentar instalar de novo'),
+                  ),
+                ],
+              ),
+            );
+          }
+        }
+      } catch (installError) {
+        if (!context.mounted) return;
+        final errorMsg = installError.toString();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              errorMsg.contains('Conflito') || errorMsg.contains('conflito') ? errorMsg : 'Falha na instalação: $installError',
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    }
+
+    await tryOpen();
   }
 
   /// Windows 下载并安装

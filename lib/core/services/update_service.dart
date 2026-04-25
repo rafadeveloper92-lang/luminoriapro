@@ -134,8 +134,15 @@ class UpdateService {
 
       ServiceLocator.log.d('UPDATE: 开始下载: $downloadUrl');
 
-      // 获取临时目录
-      final tempDir = await getTemporaryDirectory();
+      // Diretório persistente: em Android o cache/temp pode ser limpo ao sair da app;
+      // guardar o APK em support dir evita perder o ficheiro após abrir Definições de permissão.
+      final baseDir = Platform.isAndroid
+          ? await getApplicationSupportDirectory()
+          : await getTemporaryDirectory();
+      final updateDir = Directory('${baseDir.path}/app_updates');
+      if (!await updateDir.exists()) {
+        await updateDir.create(recursive: true);
+      }
       
       // 从 URL 中提取文件名
       String fileName;
@@ -149,7 +156,7 @@ class UpdateService {
         fileName = 'flutter_iptv_update.apk';
       }
       
-      final file = File('${tempDir.path}/$fileName');
+      final file = File('${updateDir.path}/$fileName');
       ServiceLocator.log.d('UPDATE: 保存到: ${file.path}');
 
       // 下载文件

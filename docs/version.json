@@ -1,27 +1,27 @@
 {
-  "version": "1.4.51",
-  "build": 171,
+  "version": "1.4.52",
+  "build": 172,
   "releaseDate": "2026-04-25",
   "assets": {
-    "windows": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.51/flutteriptv-Windows-x64-Setup.exe",
+    "windows": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.52/flutteriptv-Windows-x64-Setup.exe",
     "android_mobile": {
-      "arm64-v8a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.51/flutteriptv-Android-arm64.apk",
-      "armeabi-v7a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.51/flutteriptv-Android-arm64.apk",
-      "x86_64": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.51/flutteriptv-Android-arm64.apk"
+      "arm64-v8a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.52/flutteriptv-Android-arm64.apk",
+      "armeabi-v7a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.52/flutteriptv-Android-arm64.apk",
+      "x86_64": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.52/flutteriptv-Android-arm64.apk"
     },
     "android_tv": {
-      "arm64-v8a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.51/flutteriptv-Android-arm64.apk",
-      "armeabi-v7a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.51/flutteriptv-Android-arm64.apk",
-      "x86_64": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.51/flutteriptv-Android-arm64.apk"
+      "arm64-v8a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.52/flutteriptv-Android-arm64.apk",
+      "armeabi-v7a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.52/flutteriptv-Android-arm64.apk",
+      "x86_64": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.52/flutteriptv-Android-arm64.apk"
     },
     "ios": {
-      "universal": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.51/flutteriptv-iOS-unsigned.ipa"
+      "universal": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.52/flutteriptv-iOS-unsigned.ipa"
     }
   },
   "changelog": {
-    "pt": "Correção: Contador de favoritos no perfil atualiza ao abrir o ecrã (sem precisar da lista de favoritos)\nCorreção: Linha do tempo repõe o histórico da conta após reinstalar a app (sincronização com a nuvem)\nMelhoria: Cartão de tempo assistido mostra minutos quando ainda não há 1 hora completa",
-    "en": "Fix: Profile favorites count updates when opening profile (no need to open favorites list)\nFix: Timeline restores watch history from cloud after reinstall\nImprovement: Watch time card shows minutes when under one full hour",
-    "zh": "修复：打开个人资料时更新收藏计数（无需进入收藏列表）\n修复：重装应用后从云端恢复观看时间线\n改进：不足整小时时在观看时长卡片显示分钟"
+    "pt": "Correção: Atualização OTA — após permitir instalar apps desconhecidos, diálogo para tentar de novo sem voltar a descarregar\nCorreção: APK de atualização guardado em pasta persistente (evita perder o ficheiro ao sair para Definições)\nCorreção: Contador de favoritos no perfil ao abrir o ecrã\nCorreção: Linha do tempo sincronizada com a nuvem após reinstalar\nMelhoria: Cartão de tempo assistido (minutos abaixo de 1 h)",
+    "en": "Fix: OTA update — after allowing unknown sources, dialog to retry install without re-downloading\nFix: Update APK saved to persistent storage\nFix: Profile favorites on open; timeline from cloud after reinstall\nImprovement: Watch time card for sub-hour viewing",
+    "zh": "修复：允许未知来源后可重试安装，无需重新下载\n修复：更新 APK 持久保存\n修复：个人资料收藏与重装后时间线\n改进：观看时长显示"
   },
   "minVersion": "1.0.0"
 }

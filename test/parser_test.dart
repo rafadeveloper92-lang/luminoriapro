@@ -1,8 +1,9 @@
-import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_iptv/core/utils/m3u_parser.dart';
+import 'package:flutter_iptv/core/utils/txt_parser.dart';
 
 void main() {
-  test('M3U Parsing Test', () {
+  test('M3UParser parses metadata and keeps URLs with provider suffixes', () {
     const m3uContent = '''
 #EXTM3U
 #EXTINF:-1 group-title="💓4K(Test),#genre#" ,苏州4k
@@ -11,102 +12,56 @@ https://live-auth.51kandianshi.com/szgd/csztv4k_hd.m3u8
 http://183.207.248.71/PLTV/3/224/3221228213/1.m3u8\$南京移动
 ''';
 
-    final channels = parse(m3uContent, 1);
+    final channels = M3UParser.parse(m3uContent, 1);
 
     expect(channels.length, 2);
-
-    // First channel - No logo
     expect(channels[0].name, '苏州4k');
-    expect(channels[0].logoUrl, null);
+    expect(channels[0].logoUrl, isNull);
+    expect(channels[0].groupName, '💓4K(Test),#genre#');
 
-    // Second channel - Has logo
     expect(channels[1].name, 'CCTV1');
     expect(channels[1].logoUrl, 'https://live.fanmingming.com/tv/CCTV1.png');
-    // Also check if URL is cleaned (it won't be with current logic, but we can verify)
-    // ignore: avoid_print
-    print('URL 2: ${channels[1].url}');
+    expect(channels[1].groupName, '🐼中央电视');
+    expect(channels[1].epgId, 'CCTV1');
+    expect(
+      channels[1].url,
+      'http://183.207.248.71/PLTV/3/224/3221228213/1.m3u8\$南京移动',
+    );
   });
-}
 
-// Minimal Channel class mock for testing logic
-class Channel {
-  final int playlistId;
-  final String name;
-  final String url;
-  final String? logoUrl;
-  final String? groupName;
-  final String? epgId;
+  test('M3UParser extracts EPG URL from header', () {
+    const m3uContent = '''
+#EXTM3U x-tvg-url="https://example.com/epg.xml,https://backup.example.com/epg.xml"
+#EXTINF:-1 tvg-id="news" group-title="News",News
+https://example.com/news.m3u8
+''';
 
-  Channel({
-    required this.playlistId,
-    required this.name,
-    required this.url,
-    this.logoUrl,
-    this.groupName,
-    this.epgId,
+    final channels = M3UParser.parse(m3uContent, 1);
+
+    expect(channels.length, 1);
+    expect(M3UParser.lastParseResult?.epgUrl, 'https://example.com/epg.xml');
   });
-}
 
-// The parsing logic copied from M3UParser
-List<Channel> parse(String content, int playlistId) {
-  final List<Channel> channels = [];
-  final lines = LineSplitter.split(content).toList();
-  const extInf = '#EXTINF:';
+  test('TXTParser merges duplicate channel names into multiple sources', () {
+    const txtContent = '''
+News,#genre#
+World News,https://cdn1.example.com/news.m3u8
+World News,https://cdn2.example.com/news.m3u8
+Movies,#genre#
+Movie One,https://cdn.example.com/movie.mp4
+''';
 
-  String? currentName;
-  String? currentLogo;
-  String? currentGroup;
-  String? currentEpgId;
+    final channels = TXTParser.parse(txtContent, 7);
 
-  for (int i = 0; i < lines.length; i++) {
-    final line = lines[i].trim();
-    if (line.isEmpty) continue;
-
-    if (line.startsWith(extInf)) {
-      String content = line.substring(extInf.length);
-      final lastCommaIndex = content.lastIndexOf(',');
-      if (lastCommaIndex != -1) {
-        currentName = content.substring(lastCommaIndex + 1).trim();
-        content = content.substring(0, lastCommaIndex);
-      }
-
-      final attributes = _parseAttributes(content);
-      currentLogo = attributes['tvg-logo'] ?? attributes['logo'];
-      currentGroup = attributes['group-title'] ?? attributes['tvg-group'];
-      currentEpgId = attributes['tvg-id'] ?? attributes['tvg-name'];
-    } else if (line.isNotEmpty && !line.startsWith('#')) {
-      if (currentName != null) {
-        channels.add(Channel(
-          playlistId: playlistId,
-          name: currentName,
-          url: line,
-          logoUrl: currentLogo,
-          groupName: currentGroup ?? 'Uncategorized',
-          epgId: currentEpgId,
-        ));
-      }
-      currentName = null;
-      currentLogo = null;
-      currentGroup = null;
-      currentEpgId = null;
-    }
-  }
-  return channels;
-}
-
-Map<String, String> _parseAttributes(String content) {
-  final Map<String, String> attributes = {};
-  final RegExp attrRegex =
-      RegExp(r'(\S+?)=["\u0027]?([^"\u0027]+)["\u0027]?(?:\s|$)');
-
-  for (final match in attrRegex.allMatches(content)) {
-    if (match.groupCount >= 2) {
-      final key = match.group(1)?.toLowerCase();
-      final value = match.group(2);
-      if (key != null && value != null) {
-        attributes[key] = value.trim();
-      }
-    }
-  }
-  return attributes;
+    expect(channels.length, 2);
+    expect(channels[0].playlistId, 7);
+    expect(channels[0].name, 'World News');
+    expect(channels[0].groupName, 'News');
+    expect(channels[0].sources, [
+      'https://cdn1.example.com/news.m3u8',
+      'https://cdn2.example.com/news.m3u8',
+    ]);
+    expect(channels[1].name, 'Movie One');
+    expect(channels[1].groupName, 'Movies');
+  });
 }

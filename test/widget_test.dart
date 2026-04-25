@@ -1,14 +1,23 @@
-// Basic Flutter widget test for Luminoria
-//
-// This test verifies that the app can be built without errors.
-
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_iptv/core/models/channel.dart';
 
 void main() {
-  testWidgets('App builds without errors', (WidgetTester tester) async {
-    // This is a placeholder test.
-    // The actual app requires database initialization and other setup
-    // that makes widget testing complex.
-    expect(true, isTrue);
+  test('Channel exposes source and stream type helpers', () {
+    final channel = Channel(
+      playlistId: 1,
+      name: 'Example Live',
+      url: 'https://example.com/live/news.m3u8',
+      groupName: 'News TV',
+      sources: [
+        'https://example.com/live/news.m3u8',
+        'https://backup.example.com/live/news.m3u8',
+      ],
+    );
+
+    expect(channel.hasMultipleSources, isTrue);
+    expect(channel.sourceCount, 2);
+    expect(channel.currentUrl, 'https://example.com/live/news.m3u8');
+    expect(channel.isLive, isTrue);
+    expect(channel.isSeekable, isFalse);
   });
 }

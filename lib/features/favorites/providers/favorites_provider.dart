@@ -3,14 +3,18 @@ import '../../../core/models/channel.dart';
 import '../../../core/models/xtream_models.dart';
 import '../../../core/services/admin_auth_service.dart';
 import '../../../core/services/service_locator.dart';
+import '../../../core/services/user_favorites_service.dart';
 import '../../../core/services/user_profile_service.dart';
 
 class FavoritesProvider extends ChangeNotifier {
+  final UserFavoritesService _cloudFavorites = UserFavoritesService.instance;
   List<Channel> _favorites = [];
   final List<Map<String, dynamic>> _vodFavorites = [];
   bool _isLoading = false;
   String? _error;
   int? _activePlaylistId;
+  String? _activePlaylistKey;
+  String? _activePlaylistName;
 
   // Getters
   List<Channel> get favorites => _favorites;
@@ -22,6 +26,15 @@ class FavoritesProvider extends ChangeNotifier {
   int get vodCount => _vodFavorites.length;
 
   // Set active playlist ID
+  @visibleForTesting
+  int? get activePlaylistId => _activePlaylistId;
+
+  @visibleForTesting
+  String? get activePlaylistKey => _activePlaylistKey;
+
+  @visibleForTesting
+  String? get activePlaylistName => _activePlaylistName;
+
   void setActivePlaylistId(int playlistId) {
     if (_activePlaylistId != playlistId) {
       _activePlaylistId = playlistId;
@@ -36,55 +49,168 @@ class FavoritesProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // 首先获取当前激活的播放列表ID（如果未设置）
-      if (_activePlaylistId == null) {
-        final playlistResult = await ServiceLocator.database.query(
-          'playlists',
-          where: 'is_active = ?',
-          whereArgs: [1],
-          limit: 1,
-        );
-
-        if (playlistResult.isNotEmpty) {
-          _activePlaylistId = playlistResult.first['id'] as int;
-          ServiceLocator.log.d('自动获取激活的播放列表ID: $_activePlaylistId');
-        } else {
-          ServiceLocator.log.d('没有找到激活的播放列表');
-          _favorites = [];
-          _isLoading = false;
-          notifyListeners();
-          return;
-        }
+      await _ensureActivePlaylist();
+      if (_cloudFavorites.isAvailable) {
+        await _loadSupabaseFavorites();
+      } else {
+        await _loadLocalFavorites();
+        await _loadLocalVodFavorites();
       }
-
-      ServiceLocator.log.d('加载播放列表 $_activePlaylistId 的收藏夹');
-
-      // 只加载当前激活播放列表的收藏夹
-      final results = await ServiceLocator.database.rawQuery('''
-        SELECT c.* FROM channels c
-        INNER JOIN favorites f ON c.id = f.channel_id
-        WHERE c.is_active = 1 AND c.playlist_id = ?
-        ORDER BY f.position ASC, f.created_at DESC
-      ''', [_activePlaylistId]);
-
-      _favorites = results.map((r) {
-        final channel = Channel.fromMap(r);
-        return channel.copyWith(isFavorite: true);
-      }).toList();
-
-      ServiceLocator.log.d('加载了 ${_favorites.length} 个收藏频道');
-      _error = null;
-      await _syncFavoriteCountsToSupabase();
     } catch (e) {
       _error = 'Failed to load favorites: $e';
       _favorites = [];
+      _vodFavorites.clear();
       ServiceLocator.log.d('加载收藏夹失败: $e');
     }
 
-    await _loadVodFavorites();
     await _syncFavoriteCountsToSupabase();
     _isLoading = false;
     notifyListeners();
+  }
+
+  Future<void> _ensureActivePlaylist() async {
+    if (_activePlaylistId == null) {
+      final playlistResult = await ServiceLocator.database.query(
+        'playlists',
+        where: 'is_active = ?',
+        whereArgs: [1],
+        limit: 1,
+      );
+
+      if (playlistResult.isNotEmpty) {
+        _activePlaylistId = playlistResult.first['id'] as int;
+        ServiceLocator.log.d('自动获取激活的播放列表ID: $_activePlaylistId');
+      }
+    }
+
+    if (_activePlaylistId == null) {
+      _activePlaylistKey = null;
+      _activePlaylistName = null;
+      return;
+    }
+
+    final rows = await ServiceLocator.database.query(
+      'playlists',
+      where: 'id = ?',
+      whereArgs: [_activePlaylistId],
+      limit: 1,
+    );
+    if (rows.isEmpty) return;
+
+    final row = rows.first;
+    _activePlaylistName = row['name']?.toString();
+    _activePlaylistKey = _cloudFavorites.playlistKey(
+      url: row['url']?.toString(),
+      filePath: row['file_path']?.toString(),
+      localPlaylistId: _activePlaylistId,
+    );
+  }
+
+  Future<void> _loadSupabaseFavorites() async {
+    final cloudItems = await _cloudFavorites.listFavorites();
+    if (cloudItems.isEmpty) {
+      await _loadLocalFavorites();
+      await _loadLocalVodFavorites();
+      await _migrateLocalFavoritesToSupabase();
+      return;
+    }
+
+    final localChannelsByUrl = await _localChannelsByUrl();
+
+    _favorites = cloudItems
+        .where((item) => item.favoriteType == UserFavoritesService.channelType)
+        .map((item) {
+          final local = item.url == null ? null : localChannelsByUrl[item.url!];
+          if (local != null) return local.copyWith(isFavorite: true);
+          return item.toChannel(fallbackPlaylistId: _activePlaylistId ?? 0);
+        })
+        .toList();
+
+    _vodFavorites
+      ..clear()
+      ..addAll(
+        cloudItems
+            .where((item) =>
+                item.favoriteType == UserFavoritesService.movieType ||
+                item.favoriteType == UserFavoritesService.seriesType)
+            .map((item) => item.toVodMap()),
+      );
+
+    ServiceLocator.log.d(
+      'Supabase favoritos: canais=${_favorites.length}, vod=${_vodFavorites.length}',
+      tag: 'Favorites',
+    );
+  }
+
+  Future<void> _migrateLocalFavoritesToSupabase() async {
+    if (!_cloudFavorites.isAvailable) return;
+
+    for (var i = 0; i < _favorites.length; i++) {
+      await _cloudFavorites.upsertChannel(
+        channel: _favorites[i],
+        position: i,
+        playlistKey: _activePlaylistKey,
+        playlistName: _activePlaylistName,
+      );
+    }
+
+    for (var i = 0; i < _vodFavorites.length; i++) {
+      final favorite = _vodFavorites[i];
+      final streamId = favorite['stream_id']?.toString() ?? '';
+      final type = favorite['stream_type']?.toString() ?? UserFavoritesService.movieType;
+      if (streamId.isEmpty || (type != UserFavoritesService.movieType && type != UserFavoritesService.seriesType)) {
+        continue;
+      }
+      await _cloudFavorites.upsertVod(
+        item: XtreamStream(
+          streamId: streamId,
+          name: favorite['name']?.toString() ?? '',
+          streamIcon: favorite['icon_url']?.toString(),
+          containerExtension: favorite['container_extension']?.toString(),
+        ),
+        type: type,
+        position: i,
+        playlistKey: _activePlaylistKey,
+        playlistName: _activePlaylistName,
+      );
+    }
+  }
+
+  Future<Map<String, Channel>> _localChannelsByUrl() async {
+    try {
+      final rows = await ServiceLocator.database.query(
+        'channels',
+        where: 'is_active = ?',
+        whereArgs: [1],
+      );
+      return {
+        for (final row in rows)
+          if (row['url'] != null) row['url'].toString(): Channel.fromMap(row),
+      };
+    } catch (_) {
+      return {};
+    }
+  }
+
+  Future<void> _loadLocalFavorites() async {
+    if (_activePlaylistId == null) {
+      _favorites = [];
+      return;
+    }
+
+    final results = await ServiceLocator.database.rawQuery('''
+      SELECT c.* FROM channels c
+      INNER JOIN favorites f ON c.id = f.channel_id
+      WHERE c.is_active = 1 AND c.playlist_id = ?
+      ORDER BY f.position ASC, f.created_at DESC
+    ''', [_activePlaylistId]);
+
+    _favorites = results.map((r) {
+      final channel = Channel.fromMap(r);
+      return channel.copyWith(isFavorite: true);
+    }).toList();
+
+    ServiceLocator.log.d('SQLite favoritos: canais=${_favorites.length}', tag: 'Favorites');
   }
 
   /// Sincroniza contagens de favoritos com o perfil no Supabase (para outros verem no perfil).
@@ -98,7 +224,7 @@ class FavoritesProvider extends ChangeNotifier {
     );
   }
 
-  Future<void> _loadVodFavorites() async {
+  Future<void> _loadLocalVodFavorites() async {
     if (_activePlaylistId == null) return;
     try {
       final results = await ServiceLocator.database.query(
@@ -128,21 +254,25 @@ class FavoritesProvider extends ChangeNotifier {
   Future<bool> addVodFavorite(int playlistId, XtreamStream item, String type) async {
     if (type != 'movie' && type != 'series') return false;
     try {
+      if (_activePlaylistId != playlistId) {
+        setActivePlaylistId(playlistId);
+        await _ensureActivePlaylist();
+      }
       final positionResult = await ServiceLocator.database.rawQuery(
         'SELECT COALESCE(MAX(position), 0) + 1 as next_pos FROM vod_favorites WHERE playlist_id = ?',
         [playlistId],
       );
       final nextPosition = positionResult.isNotEmpty ? (positionResult.first['next_pos'] as int? ?? 1) : 1;
-      await ServiceLocator.database.insert('vod_favorites', {
-        'playlist_id': playlistId,
-        'stream_type': type,
-        'stream_id': item.streamId,
-        'name': item.name,
-        'icon_url': item.streamIcon,
-        'container_extension': item.containerExtension,
-        'position': nextPosition,
-        'created_at': DateTime.now().millisecondsSinceEpoch,
-      });
+      await _insertLocalVodFavorite(playlistId, item, type, nextPosition);
+      if (_cloudFavorites.isAvailable) {
+        await _cloudFavorites.upsertVod(
+          item: item,
+          type: type,
+          position: nextPosition,
+          playlistKey: _activePlaylistKey,
+          playlistName: _activePlaylistName,
+        );
+      }
       _vodFavorites.add({
         'playlist_id': playlistId,
         'stream_type': type,
@@ -168,6 +298,14 @@ class FavoritesProvider extends ChangeNotifier {
         where: 'stream_id = ?',
         whereArgs: [streamId],
       );
+      if (_cloudFavorites.isAvailable) {
+        final existing = _vodFavorites.firstWhere(
+          (v) => v['stream_id'] == streamId,
+          orElse: () => <String, dynamic>{},
+        );
+        final type = existing['stream_type']?.toString() ?? UserFavoritesService.movieType;
+        await _cloudFavorites.removeFavorite(type, _cloudFavorites.vodKey(type, streamId));
+      }
       _vodFavorites.removeWhere((v) => v['stream_id'] == streamId);
       await _syncFavoriteCountsToSupabase();
       notifyListeners();
@@ -189,14 +327,20 @@ class FavoritesProvider extends ChangeNotifier {
 
   // Check if a channel is favorited
   bool isFavorite(int channelId) {
-    return _favorites.any((c) => c.id == channelId);
+    return channelId > 0 && _favorites.any((c) => c.id == channelId);
+  }
+
+  bool isFavoriteChannel(Channel channel) {
+    if (channel.id != null && isFavorite(channel.id!)) return true;
+    return _favorites.any((c) => c.url == channel.url);
   }
 
   // Add a channel to favorites
   Future<bool> addFavorite(Channel channel) async {
-    if (channel.id == null) return false;
+    if (channel.id == null && channel.url.isEmpty) return false;
 
     try {
+      await _ensureActivePlaylist();
       // Get the next position
       final positionResult = await ServiceLocator.database.rawQuery(
         'SELECT MAX(position) as max_pos FROM favorites',
@@ -204,11 +348,17 @@ class FavoritesProvider extends ChangeNotifier {
       final nextPosition = (positionResult.first['max_pos'] as int? ?? 0) + 1;
 
       // Insert favorite
-      await ServiceLocator.database.insert('favorites', {
-        'channel_id': channel.id,
-        'position': nextPosition,
-        'created_at': DateTime.now().millisecondsSinceEpoch,
-      });
+      if (channel.id != null) {
+        await _insertLocalChannelFavorite(channel.id!, nextPosition);
+      }
+      if (_cloudFavorites.isAvailable) {
+        await _cloudFavorites.upsertChannel(
+          channel: channel,
+          position: nextPosition,
+          playlistKey: _activePlaylistKey,
+          playlistName: _activePlaylistName,
+        );
+      }
 
       _favorites.add(channel.copyWith(isFavorite: true));
       await _syncFavoriteCountsToSupabase();
@@ -224,11 +374,21 @@ class FavoritesProvider extends ChangeNotifier {
   // Remove a channel from favorites
   Future<bool> removeFavorite(int channelId) async {
     try {
+      final channel = _favorites.firstWhere(
+        (c) => c.id == channelId,
+        orElse: () => Channel(playlistId: _activePlaylistId ?? 0, name: '', url: ''),
+      );
       await ServiceLocator.database.delete(
         'favorites',
         where: 'channel_id = ?',
         whereArgs: [channelId],
       );
+      if (_cloudFavorites.isAvailable && channel.url.isNotEmpty) {
+        await _cloudFavorites.removeFavorite(
+          UserFavoritesService.channelType,
+          _cloudFavorites.channelKey(channel),
+        );
+      }
 
       _favorites.removeWhere((c) => c.id == channelId);
       await _syncFavoriteCountsToSupabase();
@@ -241,17 +401,41 @@ class FavoritesProvider extends ChangeNotifier {
     }
   }
 
+  Future<bool> removeFavoriteChannel(Channel channel) async {
+    final current = _favorites.firstWhere(
+      (c) => (channel.id != null && c.id == channel.id) || c.url == channel.url,
+      orElse: () => channel,
+    );
+    if (current.id != null) return removeFavorite(current.id!);
+    try {
+      if (_cloudFavorites.isAvailable) {
+        await _cloudFavorites.removeFavorite(
+          UserFavoritesService.channelType,
+          _cloudFavorites.channelKey(current),
+        );
+      }
+      _favorites.removeWhere((c) => c.url == current.url);
+      await _syncFavoriteCountsToSupabase();
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = 'Failed to remove favorite: $e';
+      notifyListeners();
+      return false;
+    }
+  }
+
   // Toggle favorite status
   Future<bool> toggleFavorite(Channel channel) async {
-    if (channel.id == null) {
-      ServiceLocator.log.d('收藏切换失败: 频道ID为空 - ${channel.name}');
+    if (channel.id == null && channel.url.isEmpty) {
+      ServiceLocator.log.d('收藏切换失败: 频道ID和URL为空 - ${channel.name}');
       return false;
     }
 
-    ServiceLocator.log.d('收藏切换: 频道=${channel.name}, ID=${channel.id}, 当前状态=${isFavorite(channel.id!)}');
+    ServiceLocator.log.d('收藏切换: 频道=${channel.name}, ID=${channel.id}, 当前状态=${isFavoriteChannel(channel)}');
 
-    if (isFavorite(channel.id!)) {
-      final success = await removeFavorite(channel.id!);
+    if (isFavoriteChannel(channel)) {
+      final success = await removeFavoriteChannel(channel);
       ServiceLocator.log.d('移除收藏${success ? "成功" : "失败"}');
       return success;
     } else {
@@ -271,12 +455,21 @@ class FavoritesProvider extends ChangeNotifier {
     // Update positions in database
     try {
       for (int i = 0; i < _favorites.length; i++) {
-        await ServiceLocator.database.update(
-          'favorites',
-          {'position': i},
-          where: 'channel_id = ?',
-          whereArgs: [_favorites[i].id],
-        );
+        if (_favorites[i].id != null) {
+          await ServiceLocator.database.update(
+            'favorites',
+            {'position': i},
+            where: 'channel_id = ?',
+            whereArgs: [_favorites[i].id],
+          );
+        }
+      }
+      if (_cloudFavorites.isAvailable) {
+        await _cloudFavorites.updatePositions({
+          UserFavoritesService.channelType: _favorites
+              .map(_cloudFavorites.channelKey)
+              .toList(),
+        });
       }
     } catch (e) {
       _error = 'Failed to reorder favorites: $e';
@@ -289,12 +482,49 @@ class FavoritesProvider extends ChangeNotifier {
   Future<void> clearFavorites() async {
     try {
       await ServiceLocator.database.delete('favorites');
+      if (_cloudFavorites.isAvailable) {
+        await _cloudFavorites.clearChannels();
+      }
       _favorites.clear();
       await _syncFavoriteCountsToSupabase();
       notifyListeners();
     } catch (e) {
       _error = 'Failed to clear favorites: $e';
       notifyListeners();
+    }
+  }
+
+  Future<void> _insertLocalVodFavorite(
+    int playlistId,
+    XtreamStream item,
+    String type,
+    int position,
+  ) async {
+    try {
+      await ServiceLocator.database.insert('vod_favorites', {
+        'playlist_id': playlistId,
+        'stream_type': type,
+        'stream_id': item.streamId,
+        'name': item.name,
+        'icon_url': item.streamIcon,
+        'container_extension': item.containerExtension,
+        'position': position,
+        'created_at': DateTime.now().millisecondsSinceEpoch,
+      });
+    } catch (_) {
+      // Cache local é secundário quando Supabase está disponível.
+    }
+  }
+
+  Future<void> _insertLocalChannelFavorite(int channelId, int position) async {
+    try {
+      await ServiceLocator.database.insert('favorites', {
+        'channel_id': channelId,
+        'position': position,
+        'created_at': DateTime.now().millisecondsSinceEpoch,
+      });
+    } catch (_) {
+      // Cache local é secundário quando Supabase está disponível.
     }
   }
 }

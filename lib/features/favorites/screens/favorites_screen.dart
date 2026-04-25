@@ -644,7 +644,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                 // Remove Button
                 TVFocusable(
                   onSelect: () async {
-                    await provider.removeFavorite(channel.id!);
+                    await provider.removeFavoriteChannel(channel);
 
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(

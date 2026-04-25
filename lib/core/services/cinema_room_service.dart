@@ -141,6 +141,18 @@ class CinemaRoomService {
     return client.channel('cinema_room_$roomId');
   }
 
+  /// Avisa os participantes antes de apagar a sala no banco. O DELETE continua
+  /// sendo a fonte final da verdade, mas o broadcast torna a saída imediata.
+  Future<void> broadcastRoomClosed(RealtimeChannel? channel) async {
+    if (channel == null) return;
+    await channel.sendBroadcastMessage(
+      event: 'room_closed',
+      payload: {
+        'closed_at': DateTime.now().toIso8601String(),
+      },
+    );
+  }
+
   /// Deleta a sala (ex.: quando o host sai).
   Future<void> deleteRoom(String roomId) async {
     final client = _client;

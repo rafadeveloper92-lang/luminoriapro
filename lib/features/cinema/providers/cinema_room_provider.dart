@@ -102,10 +102,7 @@ class CinemaRoomProvider extends ChangeNotifier {
         _room = updated;
         notifyListeners();
       },
-      onRoomDeleted: () {
-        _room = null;
-        notifyListeners();
-      },
+      onRoomDeleted: _handleRoomClosed,
     );
 
     final roomCh = _service.getRoomChannel(r.id);
@@ -113,6 +110,7 @@ class CinemaRoomProvider extends ChangeNotifier {
       _roomChannel = roomCh
         ..onBroadcast(event: 'chat', callback: _onChatMessage)
         ..onBroadcast(event: 'reaction', callback: _onReaction)
+        ..onBroadcast(event: 'room_closed', callback: (_) => _handleRoomClosed())
         ..onPresenceSync(_onPresenceSync);
       roomCh.subscribe((status, error) async {
         if (status == RealtimeSubscribeStatus.subscribed && roomCh.canPush) {
@@ -153,6 +151,11 @@ class CinemaRoomProvider extends ChangeNotifier {
       _recentReactions.removeAt(0);
     }
     notifyListeners();
+  }
+
+  void _handleRoomClosed() {
+    unawaited(_unsubscribeChannels());
+    _clearRoomState();
   }
 
   void _onPresenceSync(RealtimePresenceSyncPayload payload) {
@@ -245,14 +248,25 @@ class CinemaRoomProvider extends ChangeNotifier {
 
   /// Sai da sala e cancela subscriptions.
   Future<void> leaveRoom() async {
-    if (_roomChannel != null) {
-      await _roomChannel!.unsubscribe();
-      _roomChannel = null;
+    await _unsubscribeChannels();
+    _clearRoomState();
+  }
+
+  Future<void> _unsubscribeChannels() async {
+    final roomChannel = _roomChannel;
+    _roomChannel = null;
+    if (roomChannel != null) {
+      await roomChannel.unsubscribe();
     }
-    if (_syncChannel != null) {
-      await _syncChannel!.unsubscribe();
-      _syncChannel = null;
+
+    final syncChannel = _syncChannel;
+    _syncChannel = null;
+    if (syncChannel != null) {
+      await syncChannel.unsubscribe();
     }
+  }
+
+  void _clearRoomState() {
     _room = null;
     _isHost = false;
     _participants = [];
@@ -265,7 +279,14 @@ class CinemaRoomProvider extends ChangeNotifier {
   /// Host encerra a sala para todos (remove do Supabase).
   Future<void> closeRoom() async {
     final id = _room?.id;
-    if (id != null) await _service.deleteRoom(id);
+    if (id != null) {
+      try {
+        await _service.broadcastRoomClosed(_roomChannel);
+      } catch (_) {
+        // O DELETE abaixo continua sendo a fonte da verdade se o broadcast falhar.
+      }
+      await _service.deleteRoom(id);
+    }
     await leaveRoom();
   }
 

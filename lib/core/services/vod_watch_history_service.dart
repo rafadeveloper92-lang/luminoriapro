@@ -80,6 +80,76 @@ class VodWatchHistoryService {
     }
   }
 
+  /// Após reinstalar o app o SQLite fica vazio; a timeline continua no Supabase.
+  /// Mescla os últimos registos da nuvem no armazenamento local para o perfil próprio voltar a mostrar o histórico.
+  Future<void> mergeCloudWatchHistoryIntoLocal() async {
+    final userId = AdminAuthService.instance.currentUserId;
+    final client = _client;
+    if (userId == null || userId.isEmpty || client == null) return;
+
+    List<VodWatchHistoryItem> cloud;
+    try {
+      final res = await client
+          .from(_tableSupabase)
+          .select('stream_id, name, poster_url, content_type, watched_at')
+          .eq('user_id', userId)
+          .order('watched_at', ascending: false)
+          .limit(_maxItems);
+      if (res == null || res is! List || (res as List).isEmpty) return;
+      cloud = (res as List)
+          .map((r) => VodWatchHistoryItem.fromMap(Map<String, dynamic>.from(r as Map)))
+          .toList();
+    } catch (e) {
+      ServiceLocator.log.e('VodWatchHistoryService.mergeCloudWatchHistoryIntoLocal (fetch): $e');
+      return;
+    }
+
+    try {
+      for (final item in cloud) {
+        final rows = await _db.rawQuery(
+          'SELECT id, watched_at FROM $_tableLocal WHERE stream_id = ? LIMIT 1',
+          [item.streamId],
+        );
+        final cloudMs = item.watchedAt.millisecondsSinceEpoch;
+        if (rows.isEmpty) {
+          await _db.insert(_tableLocal, {
+            'stream_id': item.streamId,
+            'name': item.name,
+            'poster_url': item.posterUrl,
+            'content_type': item.contentType,
+            'watched_at': cloudMs,
+          });
+        } else {
+          final localMs = (rows.first['watched_at'] as int?) ?? 0;
+          if (cloudMs > localMs) {
+            await _db.update(
+              _tableLocal,
+              {
+                'name': item.name,
+                'poster_url': item.posterUrl,
+                'content_type': item.contentType,
+                'watched_at': cloudMs,
+              },
+              where: 'stream_id = ?',
+              whereArgs: [item.streamId],
+            );
+          }
+        }
+      }
+
+      final count = await _db.rawQuery('SELECT COUNT(*) as c FROM $_tableLocal');
+      final c = (count.first['c'] as int?) ?? 0;
+      if (c > _maxItems) {
+        await _db.rawQuery(
+          'DELETE FROM $_tableLocal WHERE id IN (SELECT id FROM $_tableLocal ORDER BY watched_at ASC LIMIT ?)',
+          [c - _maxItems],
+        );
+      }
+    } catch (e) {
+      ServiceLocator.log.e('VodWatchHistoryService.mergeCloudWatchHistoryIntoLocal (merge): $e');
+    }
+  }
+
   Future<void> _trimSupabaseHistory(SupabaseClient client, String userId) async {
     try {
       final res = await client

@@ -68,6 +68,23 @@ String _countryName(String? code) {
   return code;
 }
 
+/// Rótulo e valor do cartão de tempo assistido: horas inteiras, ou horas+minutos, ou só minutos (abaixo de 1 h).
+({String label, String value}) _watchTimeStat(double watchHours) {
+  final totalMinutes = (watchHours * 60).round();
+  if (watchHours >= 1.0) {
+    final h = watchHours.floor();
+    final m = ((watchHours - h) * 60).round().clamp(0, 59);
+    if (m >= 1) {
+      return (label: 'TEMPO', value: '${h}h ${m}m');
+    }
+    return (label: 'HORAS', value: '$h');
+  }
+  if (totalMinutes >= 1) {
+    return (label: 'MIN', value: '$totalMinutes');
+  }
+  return (label: 'MIN', value: '0');
+}
+
 class ProfileScreen extends StatefulWidget {
   final bool embedded;
   final String? userId; 
@@ -138,6 +155,7 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
   }
 
   void _refreshHistory() async {
+    await VodWatchHistoryService.instance.mergeCloudWatchHistoryIntoLocal();
     final history = await VodWatchHistoryService.instance.getWatchHistory(limit: 30);
     if (mounted) {
       setState(() => _vodHistory = history);
@@ -175,12 +193,15 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
     } else {
       await context.read<ProfileProvider>().loadProfile();
       if (!mounted) return;
+      await context.read<FavoritesProvider>().loadFavorites();
+      if (!mounted) return;
       final profile = context.read<ProfileProvider>().profile;
       context.read<ThemeProvider>().loadEquippedTheme(profile?.equippedThemeKey);
       context.read<FriendsProvider>().loadAll();
-      VodWatchHistoryService.instance.getWatchHistory(limit: 30).then((l) {
-        if (mounted) setState(() => _vodHistory = l);
-      });
+      await VodWatchHistoryService.instance.mergeCloudWatchHistoryIntoLocal();
+      if (!mounted) return;
+      final history = await VodWatchHistoryService.instance.getWatchHistory(limit: 30);
+      if (mounted) setState(() => _vodHistory = history);
       context.read<ProfileProvider>().startRealtimeSubscription(() {
         if (!mounted) return;
         context.read<ThemeProvider>().loadEquippedTheme(
@@ -249,6 +270,7 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
           final favCount = isMe
               ? (favorites.count + favorites.vodCount)
               : ((displayProfile?.favChannelsCount ?? 0) + (displayProfile?.favVodCount ?? 0));
+          final watchStat = _watchTimeStat(watchHours);
           final friendCount = isMe ? friendsProv.totalFriendsCount : _otherFriendCount;
           final friendCountDisplay = friendCount != null ? '$friendCount' : '—';
 
@@ -481,7 +503,7 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
                       const SizedBox(width: 8),
                       _statCard(context, Icons.favorite_rounded, 'FAVS', '$favCount'),
                       const SizedBox(width: 8),
-                      _statCard(context, Icons.schedule_rounded, 'HORAS', '${watchHours.toInt()}'),
+                      _statCard(context, Icons.schedule_rounded, watchStat.label, watchStat.value),
                     ],
                   ),
                 ),

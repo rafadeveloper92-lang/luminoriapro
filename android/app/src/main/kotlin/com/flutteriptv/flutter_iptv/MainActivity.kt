@@ -5,6 +5,7 @@ import android.content.res.Configuration
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.util.Log
 import android.view.KeyEvent
 import android.view.View
@@ -860,12 +861,18 @@ class MainActivity: FlutterFragmentActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             if (!packageManager.canRequestPackageInstalls()) {
                 Log.e(TAG, "REQUEST_INSTALL_PACKAGES permission not granted")
-                throw Exception("Permissão de instalação não concedida. Por favor, habilite nas configurações do app.")
+                val settingsIntent = Intent(
+                    Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                    Uri.parse("package:$packageName")
+                )
+                settingsIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                startActivity(settingsIntent)
+                throw Exception("Permissão necessária: ative \"Instalar apps desconhecidos\" para o Luminoria e toque em Atualizar novamente.")
             }
         }
         
         val intent = Intent(Intent.ACTION_VIEW)
-        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             // Android 7.0+ use FileProvider
@@ -876,8 +883,6 @@ class MainActivity: FlutterFragmentActivity() {
             )
             intent.setDataAndType(uri, "application/vnd.android.package-archive")
             intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            // Flag adicional para garantir que pode ler o arquivo
-            intent.addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
         } else {
             // Older versions use file:// URI
             intent.setDataAndType(Uri.fromFile(file), "application/vnd.android.package-archive")

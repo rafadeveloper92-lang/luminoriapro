@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../i18n/app_strings.dart';
 import '../models/app_update.dart';
 import '../services/update_service.dart';
 import '../widgets/update_dialog.dart';
@@ -41,10 +42,10 @@ class UpdateManager {
 
       // 显示加载提示
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Row(
             children: [
-              SizedBox(
+              const SizedBox(
                 width: 20,
                 height: 20,
                 child: CircularProgressIndicator(
@@ -52,11 +53,11 @@ class UpdateManager {
                   valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
               ),
-              SizedBox(width: 16),
-              Text('正在检查更新...'),
+              const SizedBox(width: 16),
+              Text(AppStrings.of(context)?.checkingUpdate ?? 'Verificando atualizações...'),
             ],
           ),
-          duration: Duration(seconds: 2),
+          duration: const Duration(seconds: 2),
         ),
       );
 
@@ -73,8 +74,8 @@ class UpdateManager {
       } else if (context.mounted) {
         ServiceLocator.log.d('UPDATE_MANAGER: 已是最新版本');
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('已是最新版本'),
+          SnackBar(
+            content: Text(AppStrings.of(context)?.alreadyLatestVersion ?? 'Já está na versão mais recente'),
             backgroundColor: Colors.green,
           ),
         );
@@ -85,7 +86,10 @@ class UpdateManager {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('检查更新失败: $e'),
+            content: Text(
+              (AppStrings.of(context)?.checkUpdateFailed ?? 'Falha ao verificar atualização: {error}')
+                  .replaceAll('{error}', e.toString()),
+            ),
             backgroundColor: Colors.red,
           ),
         );
@@ -142,7 +146,10 @@ class UpdateManager {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('更新失败: $e'),
+            content: Text(
+              (AppStrings.of(context)?.updateFailed ?? 'Falha na atualização: {error}')
+                  .replaceAll('{error}', e.toString()),
+            ),
             backgroundColor: Colors.red,
           ),
         );
@@ -166,7 +173,7 @@ class UpdateManager {
           builder: (context, setState) {
             dialogSetState = setState;
             return AlertDialog(
-              title: const Text('下载更新'),
+              title: Text(AppStrings.of(context)?.downloadUpdate ?? 'Baixar atualização'),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -181,7 +188,7 @@ class UpdateManager {
                     cancelled = true;
                     Navigator.of(ctx).pop();
                   },
-                  child: const Text('取消'),
+                  child: Text(AppStrings.of(context)?.cancel ?? 'Cancelar'),
                 ),
               ],
             );
@@ -220,17 +227,14 @@ class UpdateManager {
         try {
           await _installApk(file.path);
           
-          // 安装启动后删除缓存文件（延迟删除，确保安装程序已读取文件）
-          Future.delayed(const Duration(seconds: 5), () async {
-            try {
-              if (await file.exists()) {
-                await file.delete();
-                ServiceLocator.log.d('UPDATE_MANAGER: 已删除安装缓存文件');
-              }
-            } catch (e) {
-              ServiceLocator.log.d('UPDATE_MANAGER: 删除缓存文件失败: $e');
-            }
-          });
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(AppStrings.of(context)?.installerOpened ?? 'Instalador aberto. Confirme a instalação para concluir a atualização.'),
+                duration: const Duration(seconds: 6),
+              ),
+            );
+          }
         } catch (installError) {
           // Erro específico de instalação - mostra mensagem mais clara
           if (dialogContext != null && dialogContext!.mounted) {
@@ -251,7 +255,7 @@ class UpdateManager {
           return;
         }
       } else {
-        throw Exception('下载失败');
+        throw Exception('Falha no download');
       }
     } catch (e) {
       ServiceLocator.log.d('UPDATE_MANAGER: 下载失败: $e');
@@ -261,7 +265,7 @@ class UpdateManager {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('下载失败: $e'),
+            content: Text('Falha no download: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -303,7 +307,7 @@ class UpdateManager {
           builder: (_, setState) {
             dialogSetState = setState;
             return AlertDialog(
-              title: const Text('下载更新'),
+              title: Text(AppStrings.of(context)?.downloadUpdate ?? 'Baixar atualização'),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -319,7 +323,7 @@ class UpdateManager {
                     dialogOpen = false;
                     Navigator.of(ctx).pop();
                   },
-                  child: const Text('取消'),
+                  child: Text(AppStrings.of(context)?.cancel ?? 'Cancelar'),
                 ),
               ],
             );
@@ -365,8 +369,8 @@ class UpdateManager {
           await showDialog(
             context: context,
             builder: (ctx) => AlertDialog(
-              title: const Text('下载完成'),
-              content: const Text('是否立即运行安装程序？'),
+              title: Text(AppStrings.of(context)?.downloadComplete ?? 'Download concluído'),
+              content: Text(AppStrings.of(context)?.runInstallerNow ?? 'Executar instalador agora?'),
               actions: [
                 TextButton(
                   onPressed: () async {
@@ -381,7 +385,7 @@ class UpdateManager {
                       ServiceLocator.log.d('UPDATE_MANAGER: 删除文件失败: $e');
                     }
                   },
-                  child: const Text('稍后'),
+                  child: Text(AppStrings.of(context)?.later ?? 'Mais tarde'),
                 ),
                 TextButton(
                   onPressed: () async {
@@ -392,7 +396,7 @@ class UpdateManager {
                     // 退出当前应用
                     exit(0);
                   },
-                  child: const Text('立即安装'),
+                  child: Text(AppStrings.of(context)?.installNow ?? 'Instalar agora'),
                 ),
               ],
             ),
@@ -403,7 +407,7 @@ class UpdateManager {
           exit(0);
         }
       } else {
-        throw Exception('下载失败');
+        throw Exception('Falha no download');
       }
     } catch (e) {
       ServiceLocator.log.d('UPDATE_MANAGER: 下载失败: $e');
@@ -414,7 +418,7 @@ class UpdateManager {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('下载失败: $e'),
+            content: Text('Falha no download: $e'),
             backgroundColor: Colors.red,
           ),
         );

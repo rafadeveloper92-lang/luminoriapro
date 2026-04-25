@@ -347,7 +347,15 @@ class AppStrings {
   String get updateLater => _localizedValues['updateLater']!;
   String get updateNow => _localizedValues['updateNow']!;
   String get noReleaseNotes => _localizedValues['noReleaseNotes']!;
+  String get alreadyLatestVersion => _localizedValues['alreadyLatestVersion']!;
+  String get checkUpdateFailed => _localizedValues['checkUpdateFailed']!;
+  String get updateFailed => _localizedValues['updateFailed']!;
+  String get downloadUpdate => _localizedValues['downloadUpdate']!;
+  String get downloadFailed => _localizedValues['downloadFailed']!;
   String get downloadComplete => _localizedValues['downloadComplete']!;
+  String get runInstallerNow => _localizedValues['runInstallerNow']!;
+  String get later => _localizedValues['later']!;
+  String get installNow => _localizedValues['installNow']!;
   String get logsCleared => _localizedValues['logsCleared']!;
   String get clearLogsConfirm => _localizedValues['clearLogsConfirm']!;
   String get clearLogsConfirmMessage => _localizedValues['clearLogsConfirmMessage']!;

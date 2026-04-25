@@ -8,12 +8,18 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
-// Load key.properties
+// Load Android release signing config from android/key.properties.
+// CI creates this file from GitHub Secrets; local builds can create it manually.
 val keystorePropertiesFile = rootProject.file("key.properties")
 val keystoreProperties = Properties()
 if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
+val hasReleaseKeystore = keystorePropertiesFile.exists() &&
+    keystoreProperties["keyAlias"]?.toString()?.isNotBlank() == true &&
+    keystoreProperties["keyPassword"]?.toString()?.isNotBlank() == true &&
+    keystoreProperties["storeFile"]?.toString()?.isNotBlank() == true &&
+    keystoreProperties["storePassword"]?.toString()?.isNotBlank() == true
 
 android {
     namespace = "com.flutteriptv.flutter_iptv"
@@ -32,7 +38,7 @@ android {
 
     signingConfigs {
         create("release") {
-            if (keystorePropertiesFile.exists()) {
+            if (hasReleaseKeystore) {
                 keyAlias = keystoreProperties["keyAlias"] as String
                 keyPassword = keystoreProperties["keyPassword"] as String
                 storeFile = file(keystoreProperties["storeFile"] as String)
@@ -58,7 +64,7 @@ android {
             // Reative (true) e use proguard-rules.pro quando o Stripe/AGP corrigir.
             isMinifyEnabled = false
             isShrinkResources = false
-            signingConfig = if (keystorePropertiesFile.exists()) {
+            signingConfig = if (hasReleaseKeystore) {
                 signingConfigs.getByName("release")
             } else {
                 signingConfigs.getByName("debug")

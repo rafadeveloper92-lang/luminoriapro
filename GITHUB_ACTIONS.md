@@ -107,9 +107,11 @@ Veja a seção "Configurar Assinatura iOS" abaixo.
 
 ## 🔐 Configurar Secrets (Opcional)
 
-### Para Android (Assinatura de APK)
+### Para Android (Assinatura de APK) — obrigatório para auto-update
 
-Se você tiver uma keystore, configure:
+Para que o botão **Atualizar agora** funcione nas próximas versões, todos os
+APKs precisam ser assinados com a **mesma keystore**. Configure estes secrets
+antes de criar tags de release:
 
 1. Vá em: `Settings` → `Secrets and variables` → `Actions`
 2. Adicione os secrets:
@@ -120,6 +122,9 @@ KEYSTORE_PASSWORD: senha da keystore
 KEY_PASSWORD: senha da key
 KEY_ALIAS: alias da key
 ```
+
+O workflow `Build and Release` falha de propósito se esses secrets não
+existirem, para evitar publicar outro APK assinado com chave temporária/debug.
 
 **Como gerar o base64:**
 ```bash

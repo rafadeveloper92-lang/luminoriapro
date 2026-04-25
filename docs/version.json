@@ -1,21 +1,21 @@
 {
-  "version": "1.4.48",
-  "build": 168,
+  "version": "1.4.49",
+  "build": 169,
   "releaseDate": "2026-04-25",
   "assets": {
-    "windows": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.48/flutteriptv-Windows-x64-Setup.exe",
+    "windows": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.49/flutteriptv-Windows-x64-Setup.exe",
     "android_mobile": {
-      "arm64-v8a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.48/flutteriptv-Android-arm64.apk",
-      "armeabi-v7a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.48/flutteriptv-Android-arm64.apk",
-      "x86_64": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.48/flutteriptv-Android-arm64.apk"
+      "arm64-v8a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.49/flutteriptv-Android-arm64.apk",
+      "armeabi-v7a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.49/flutteriptv-Android-arm64.apk",
+      "x86_64": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.49/flutteriptv-Android-arm64.apk"
     },
     "android_tv": {
-      "arm64-v8a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.48/flutteriptv-Android-arm64.apk",
-      "armeabi-v7a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.48/flutteriptv-Android-arm64.apk",
-      "x86_64": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.48/flutteriptv-Android-arm64.apk"
+      "arm64-v8a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.49/flutteriptv-Android-arm64.apk",
+      "armeabi-v7a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.49/flutteriptv-Android-arm64.apk",
+      "x86_64": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.49/flutteriptv-Android-arm64.apk"
     },
     "ios": {
-      "universal": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.48/flutteriptv-iOS-unsigned.ipa"
+      "universal": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.49/flutteriptv-iOS-unsigned.ipa"
     }
   },
   "changelog": {

@@ -151,7 +151,21 @@ jobs:
             echo "Configure KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_PASSWORD and KEY_ALIAS in GitHub Actions secrets."
             exit 1
           fi
-          printf '%s' "$KEYSTORE_BASE64" | tr -d '[:space:]' | base64 -d > android/app/luminora-release.keystore
+          python3 - <<'PY'
+          import base64
+          import os
+          import re
+
+          raw = os.environ['KEYSTORE_BASE64']
+          # Mobile copy/paste can add invisible characters or terminal markers.
+          # Keep only the base64 alphabet, then normalize padding.
+          cleaned = re.sub(r'[^A-Za-z0-9+/=]', '', raw)
+          cleaned = cleaned.rstrip('=')
+          cleaned += '=' * ((4 - len(cleaned) % 4) % 4)
+
+          with open('android/app/luminora-release.keystore', 'wb') as f:
+              f.write(base64.b64decode(cleaned, validate=True))
+          PY
           cat > android/key.properties <<EOF
           storePassword=$KEYSTORE_PASSWORD
           keyPassword=$KEY_PASSWORD

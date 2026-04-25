@@ -405,7 +405,7 @@ class _AdminHomeSportsPanelState extends State<AdminHomeSportsPanel> {
                         onChanged: (v) => setModal(() => weekday = v ?? 0),
                       ),
                       const SizedBox(height: 12),
-                      DropdownButtonFormField<int>(
+                      DropdownButtonFormField<int?>(
                         value: channelId,
                         decoration: const InputDecoration(
                           labelText: 'Canal ao tocar no cartão',
@@ -414,7 +414,7 @@ class _AdminHomeSportsPanelState extends State<AdminHomeSportsPanel> {
                         isExpanded: true,
                         items: [
                           const DropdownMenuItem<int?>(value: null, child: Text('— Não abrir canal —')),
-                          ...sportCh.map(
+                          ...sportCh.where((c) => c.id != null).map(
                             (c) => DropdownMenuItem<int?>(
                               value: c.id,
                               child: Text('${c.name} (id ${c.id})', overflow: TextOverflow.ellipsis),

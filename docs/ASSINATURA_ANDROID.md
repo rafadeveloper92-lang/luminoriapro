@@ -78,6 +78,37 @@ Os APK gerados em `build/app/outputs/` estarão assinados com a tua keystore. Us
 
 ---
 
+## 5. GitHub Actions (release automática)
+
+Para o APK publicado em **Releases** sair assinado sempre com a mesma chave, configure estes secrets no GitHub:
+
+`Settings` → `Secrets and variables` → `Actions` → `New repository secret`
+
+| Secret | Valor |
+|--------|-------|
+| `KEYSTORE_BASE64` | Conteúdo da keystore convertido para base64 |
+| `KEYSTORE_PASSWORD` | Senha da keystore |
+| `KEY_PASSWORD` | Senha da key |
+| `KEY_ALIAS` | Alias usado no `keytool` (ex.: `luminora`) |
+
+Gerar `KEYSTORE_BASE64`:
+
+**Windows PowerShell:**
+```powershell
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("android/app/luminora-release.keystore"))
+```
+
+**Linux / Mac:**
+```bash
+base64 -w 0 android/app/luminora-release.keystore
+```
+
+Depois disso, toda tag de release (`v1.4.45`, `v1.4.46`, etc.) vai gerar APK assinado com a mesma chave.
+
+Se esses secrets não estiverem configurados, o workflow de release falha de propósito para evitar publicar outro APK com assinatura debug/diferente.
+
+---
+
 ## Resumo
 
 | Situação | O que fazer |

@@ -1,4 +1,4 @@
-/// Prémios em moedas (Luminárias) exibidos no ranking mensal — valores da app; ajuste aqui se mudar a política.
+/// Prémios em moedas (Luminárias) do ranking mensal — manter alinhado com `supabase/33_monthly_ranking_coin_payout.sql` (`rank_reward_coins`).
 abstract final class GlobalRankPrizes {
   static int coinsForRank(int rank) {
     if (rank <= 0) return 0;
@@ -24,7 +24,8 @@ abstract final class GlobalRankPrizes {
       case 10:
         return 25;
       default:
-        return 15;
+        if (rank <= 1000) return 15;
+        return 0;
     }
   }
 

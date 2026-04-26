@@ -50,6 +50,20 @@ Ou use o **Painel Administrativo** no app (Configurações → Entrar como admin
 
 ---
 
+## Ranking mensal — moedas no fim do mês
+
+Depois de **12_monthly_watch_time.sql** e **24_global_ranking_all_users.sql**, execute **33_monthly_ranking_coin_payout.sql**:
+
+- Cria `monthly_ranking_rewards` (evita pagar duas vezes o mesmo mês/utilizador).
+- Função `apply_monthly_ranking_rewards(null)` credita o **mês UTC anterior** (só quem tem `watch_minutes > 0` nesse mês).
+- Se a extensão **pg_cron** estiver ativa no projeto, agenda execução no **dia 1 às 00:10 UTC**.
+
+Teste manual (SQL Editor), por exemplo para o mês que acabou:
+
+`select public.apply_monthly_ranking_rewards(null);`
+
+Apenas **service_role** pode chamar a função (cron / Edge Function com service key). Não exponha ao cliente anónimo.
+
 ## Stripe (pagamentos)
 
 **Passo a passo completo:** veja **[STRIPE_SETUP.md](../STRIPE_SETUP.md)** na raiz do projeto (configuração no **.env** + **Supabase** + webhook no Stripe).

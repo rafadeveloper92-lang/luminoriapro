@@ -317,7 +317,7 @@ class _GlobalRankScreenState extends State<GlobalRankScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'As moedas (Luminárias) da tabela abaixo são o bónus simbólico por posição no fim do mês — use-as na loja do app quando estiverem disponíveis na tua conta.',
+              'No primeiro dia de cada mês (UTC) o sistema credita automaticamente as moedas (Luminárias) da tabela abaixo na conta de quem ficou nessa posição no mês que acabou — só quem assistiu pelo menos 1 minuto entra no ranking desse mês. Usa-as na loja do app.',
               style: TextStyle(color: Colors.white.withOpacity(0.55), fontSize: 12, height: 1.4),
             ),
           ],
@@ -399,7 +399,7 @@ class _GlobalRankScreenState extends State<GlobalRankScreen> {
             }),
             const SizedBox(height: 4),
             Text(
-              'Posições 11+ · ${GlobalRankPrizes.coinsForRank(11)} moedas',
+              '11.º–1000.º · ${GlobalRankPrizes.coinsForRank(11)} moedas  ·  acima de 1000.º · 0',
               style: TextStyle(color: Colors.white.withOpacity(0.45), fontSize: 11),
             ),
           ],

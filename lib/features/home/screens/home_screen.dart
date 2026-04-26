@@ -298,6 +298,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
           MapEntry('novidade', 'Novidades'),
           MapEntry('recent', 'Recentes'),
           MapEntry('novo', 'Novidades'),
+          MapEntry('2026', '2026'),
           MapEntry('2025', '2025'),
           MapEntry('2024', '2024'),
           MapEntry('acao', 'Ação'),
@@ -346,7 +347,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
         XtreamCategory? releasePick;
         const releaseHints = [
           'lançamento', 'lancamento', 'lancamentos', 'estreia', 'estreias',
-          'novidade', 'novidades', 'recém', 'recem', 'recent', 'novos', '2025', '2024',
+          'novidade', 'novidades', 'recém', 'recem', 'recent', 'novos', '2026', '2025', '2024',
         ];
         for (final hint in releaseHints) {
           for (final c in categories) {
@@ -747,6 +748,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
     'Estreias',
     'Novidades',
     'Recentes',
+    '2026',
     '2025',
     '2024',
     'Ação',

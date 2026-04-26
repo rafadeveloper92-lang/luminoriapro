@@ -16,6 +16,7 @@ import '../profile_ranks.dart';
 import '../providers/profile_provider.dart';
 import '../providers/theme_provider.dart';
 import '../widgets/rank_badge_widget.dart';
+import '../widgets/rank_premium_card.dart';
 import '../widgets/animated_profile_avatar.dart';
 import '../widgets/profile_level_badge.dart';
 import '../widgets/theme_decorations.dart';
@@ -928,80 +929,110 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
   }
 
   void _showXpRanksModal(BuildContext context, int xp) {
+    final surface = AppTheme.getSurfaceColor(context);
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
-      builder: (ctx) => Container(
-        decoration: BoxDecoration(
-          color: AppTheme.getSurfaceColor(context),
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-          border: Border.all(color: Colors.white12),
-        ),
-        padding: const EdgeInsets.all(20),
-        child: SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(color: Colors.grey.shade600, borderRadius: BorderRadius.circular(2)),
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Status e Patentes',
-                style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'XP Atual: $xp pontos',
-                style: TextStyle(color: Colors.grey.shade400, fontSize: 14),
-              ),
-              const SizedBox(height: 20),
-              ...kProfileRanks.map((rank) {
-                final unlocked = rank.isUnlocked(xp);
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 14),
-                  child: Row(
-                    children: [
-                      RankBadgeWidget(
-                        rank: rank,
-                        size: 40,
-                        showLevel: false,
-                        unlocked: unlocked,
-                      ),
-                      const SizedBox(width: 14),
-                      Icon(
-                        unlocked ? Icons.lock_open_rounded : Icons.lock_rounded,
-                        color: unlocked ? Colors.green : Colors.grey,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          rank.name,
-                          style: TextStyle(
-                            color: unlocked ? Colors.white : Colors.grey.shade500,
-                            fontSize: 16,
-                            fontWeight: unlocked ? FontWeight.w600 : FontWeight.normal,
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.72,
+        minChildSize: 0.45,
+        maxChildSize: 0.92,
+        expand: false,
+        builder: (ctx, scrollController) => Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color.lerp(surface, Colors.black, 0.12)!,
+                surface,
+                Color.lerp(surface, const Color(0xFF050508), 0.25)!,
+              ],
+            ),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+            border: Border.all(color: Colors.white.withOpacity(0.08)),
+            boxShadow: [
+              BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 24, offset: const Offset(0, -4)),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+            child: SafeArea(
+              child: CustomScrollView(
+                controller: scrollController,
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 10),
+                        Center(
+                          child: Container(
+                            width: 40,
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(2),
+                            ),
                           ),
                         ),
-                      ),
-                      Text(
-                        '${rank.xpRequired} XP',
-                        style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
-                      ),
-                    ],
+                        const SizedBox(height: 18),
+                        Text(
+                          'Patentes',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.98),
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          '$xp XP no seu perfil',
+                          style: TextStyle(color: Colors.grey.shade400, fontSize: 14, fontWeight: FontWeight.w500),
+                        ),
+                        const SizedBox(height: 22),
+                      ],
+                    ),
                   ),
-                );
-              }),
-              const SizedBox(height: 16),
-            ],
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    sliver: SliverGrid(
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        mainAxisSpacing: 20,
+                        crossAxisSpacing: 10,
+                        childAspectRatio: 0.74,
+                      ),
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          final rank = kProfileRanks[index];
+                          final unlocked = rank.isUnlocked(xp);
+                          return Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              RankPremiumCard(rank: rank, unlocked: unlocked, badgeSize: 74),
+                              const SizedBox(height: 4),
+                              Text(
+                                '${rank.xpRequired} XP',
+                                style: TextStyle(
+                                  color: unlocked ? Colors.white54 : Colors.white30,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                        childCount: kProfileRanks.length,
+                      ),
+                    ),
+                  ),
+                  const SliverToBoxAdapter(child: SizedBox(height: 28)),
+                ],
+              ),
+            ),
           ),
         ),
       ),

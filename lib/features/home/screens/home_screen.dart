@@ -291,6 +291,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
 
         ServiceLocator.log.d('HomeScreen: Fetching TMDB & Xtream Content...', tag: 'HomeScreen');
         const preferredSections = <MapEntry<String, String>>[
+          // Faixa de anos antes de "lancament" (senão "LANÇAMENTOS" casa primeiro)
+          MapEntry('2025-2026', 'Lançamentos 2025-2026'),
+          MapEntry('2025–2026', 'Lançamentos 2025-2026'),
+          MapEntry('2025/2026', 'Lançamentos 2025-2026'),
           // Listas estilo "FILMES | NETFLIX" / "RECENTEMENTE ADICIONADO" (comum em painéis Xtream)
           MapEntry('recentement', 'Recentemente adicionados'),
           MapEntry('adicionado', 'Recentemente adicionados'),
@@ -302,8 +306,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
           MapEntry('amazon prime', 'Prime Video'),
           MapEntry('globoplay', 'Globoplay'),
           MapEntry('hbo max', 'HBO Max'),
-          MapEntry('hbo ', 'HBO Max'),
+          MapEntry('disney plus', 'Disney+'),
+          MapEntry('disney+', 'Disney+'),
           MapEntry('disney', 'Disney+'),
+          MapEntry('looke', 'Looke'),
+          MapEntry('paramount plus', 'Paramount+'),
+          MapEntry('claro tv+', 'Claro TV+'),
+          MapEntry('claro tv', 'Claro TV+'),
+          MapEntry('marvel e dc', 'Marvel & DC'),
+          MapEntry('marvel', 'Marvel & DC'),
+          MapEntry('oldflix', 'Oldflix'),
+          MapEntry('infantis', 'Infantis'),
+          MapEntry('top 10', 'Top 10 filmes'),
+          MapEntry('top 100', 'Top 100'),
+          MapEntry('vale a pena', 'Vale a pena ver'),
           MapEntry('apple tv', 'Apple TV+'),
           MapEntry('paramount', 'Paramount+'),
           MapEntry('star+', 'Star+'),
@@ -377,11 +393,27 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
           catsToLoad.add(c);
         }
 
-        // 1) Categoria que parece "lançamentos" (prioridade para conteúdo recente)
+        XtreamCategory? _findLancamentosYearRange() {
+          for (final c in categories) {
+            final n = c.categoryName.toLowerCase();
+            final hasRange =
+                n.contains('2025-2026') || n.contains('2025–2026') || n.contains('2025/2026') || n.contains('2025 e 2026');
+            final isLanc =
+                n.contains('lançament') || n.contains('lancament') || n.contains('lançamento') || n.contains('lancamento');
+            if (hasRange && isLanc) return c;
+          }
+          return null;
+        }
+
+        // 0) Ex.: "LANÇAMENTOS | 2025-2026" (muito comum em listas BR)
+        addCategory(_findLancamentosYearRange());
+
+        // 1) Categoria que parece "lançamentos" / recentes (prioridade para conteúdo recente)
         XtreamCategory? releasePick;
         const releaseHints = [
           'recentement', 'adicionado', 'recém adicion', 'recém-adicion',
-          'lançamento', 'lancamento', 'lancamentos', 'estreia', 'estreias',
+          'lançamentos', 'lançamento', 'lancamentos', 'lancamento',
+          'estreia', 'estreias',
           'novidade', 'novidades', 'recém', 'recem', 'recent', 'novos',
           '2027', '2026', '2025', '2024', '2023',
         ];
@@ -400,16 +432,23 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
         const platformHints = [
           '4k',
           'uhd',
+          'looke',
           'netflix',
           'prime video',
           'amazon prime',
           'globoplay',
           'hbo max',
+          'disney plus',
+          'disney+',
           'disney',
           'apple tv',
+          'paramount plus',
           'paramount',
+          'claro tv+',
+          'claro tv',
           'star+',
           'star plus',
+          'oldflix',
         ];
         for (final hint in platformHints) {
           XtreamCategory? pick;
@@ -819,7 +858,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
 
   static const _categoryOrder = [
     'Recentemente adicionados',
+    'Lançamentos 2025-2026',
     '4K',
+    'Looke',
     'Netflix',
     'Prime Video',
     'Globoplay',
@@ -828,8 +869,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
     'Apple TV+',
     'Paramount+',
     'Star+',
+    'Claro TV+',
     'Claro video',
     'Crunchyroll',
+    'Oldflix',
+    'Marvel & DC',
+    'Infantis',
+    'Top 10 filmes',
+    'Top 100',
+    'Vale a pena ver',
     'Lançamentos',
     'Estreias',
     'Novidades',

@@ -288,6 +288,7 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
           final xpBarLabel = nextRank != null
               ? '${xpInCurrentLevel.clamp(0, xpNeededForNext)} / $xpNeededForNext XP'
               : '$xp XP';
+          const rankCyan = Color(0xFF00D4E8);
           final equippedBorderKey = displayProfile?.equippedBorderKey ?? (isMe ? myProfileProv.equippedBorderKey : null);
 
           // Obter tema (próprio ou do amigo já carregado em _initProfile) para capa e decoração
@@ -419,6 +420,16 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
                           ),
                         ),
                         const SizedBox(height: 10),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(999),
+                          child: LinearProgressIndicator(
+                            value: levelProgress.clamp(0.0, 1.0),
+                            minHeight: 5,
+                            backgroundColor: const Color(0xFF2A2A32),
+                            valueColor: const AlwaysStoppedAnimation<Color>(rankCyan),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
                         Text(
                           xpBarLabel,
                           textAlign: TextAlign.center,
@@ -549,61 +560,7 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
                 ),
               ),
               const SliverToBoxAdapter(child: SizedBox(height: 24)),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'NÍVEL DE EXPERIÊNCIA',
-                        style: TextStyle(
-                          color: Colors.grey.shade500,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        'EVOLUÇÃO DE PATENTE',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: LinearProgressIndicator(
-                                value: levelProgress,
-                                minHeight: 10,
-                                backgroundColor: Colors.grey.shade800,
-                                valueColor: AlwaysStoppedAnimation<Color>(AppTheme.getPrimaryColor(context)),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Text(
-                            nextRank != null
-                                ? '$xpInCurrentLevel / ${xpNeededForNext} XP'
-                                : '$xp XP',
-                            style: TextStyle(
-                              color: Colors.grey.shade400,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SliverToBoxAdapter(child: SizedBox(height: 24)),
-              
+
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),

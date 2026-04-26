@@ -112,16 +112,70 @@ class _SeriesCatalogScreenState extends State<SeriesCatalogScreen> {
   final ScrollController _scrollController = ScrollController();
   final TmdbService _tmdbService = TmdbService();
   bool _isLoadingHome = true;
-  
+
+  /// Palavra-chave → título curto (listas tipo "SÉRIES | NETFLIX").
+  static const List<MapEntry<String, String>> _kSeriesSectionLabels = [
+    MapEntry('2025-2026', 'Lançamentos 2025-2026'),
+    MapEntry('2025–2026', 'Lançamentos 2025-2026'),
+    MapEntry('recentement', 'Recentemente adicionados'),
+    MapEntry('adicionado', 'Recentemente adicionados'),
+    MapEntry('continue watch', 'Continue assistindo'),
+    MapEntry('netflix', 'Netflix'),
+    MapEntry('amazon prime', 'Prime Video'),
+    MapEntry('prime video', 'Prime Video'),
+    MapEntry('hbo max', 'Max'),
+    MapEntry('disney plus', 'Disney+'),
+    MapEntry('disney+', 'Disney+'),
+    MapEntry('discovery plus', 'Discovery+'),
+    MapEntry('apple tv', 'Apple TV+'),
+    MapEntry('paramount', 'Paramount+'),
+    MapEntry('star plus', 'Star+'),
+    MapEntry('star+', 'Star+'),
+    MapEntry('crunchyroll', 'Crunchyroll'),
+    MapEntry('funimation', 'Funimation'),
+    MapEntry('dorama', 'Dorama'),
+    MapEntry('novela', 'Novelas'),
+    MapEntry('globoplay', 'Globoplay'),
+    MapEntry('malhação', 'Malhação'),
+    MapEntry('malhacao', 'Malhação'),
+    MapEntry('looke', 'Looke'),
+    MapEntry('oldflix', 'Oldflix'),
+    MapEntry('mgm plus', 'MGM+'),
+    MapEntry('lionsgate', 'Lionsgate'),
+    MapEntry('directv', 'DIRECTV'),
+    MapEntry('turcas', 'Turcas'),
+    MapEntry('claro video', 'Claro video'),
+    MapEntry('claro tv', 'Claro TV+'),
+    MapEntry('documentár', 'Documentários'),
+    MapEntry('legendado', 'Legendados'),
+    MapEntry('outras produtor', 'Outras produtoras'),
+    MapEntry('brasil paralelo', 'Brasil Paralelo'),
+    MapEntry('| sbt', 'SBT'),
+    MapEntry(' sbt', 'SBT'),
+    MapEntry('religios', 'Religiosos'),
+    MapEntry('romance', 'Romance'),
+    MapEntry('animacao', 'Animação'),
+    MapEntry('animação', 'Animação'),
+    MapEntry('fantasia', 'Fantasia'),
+    MapEntry('comedia', 'Comédia'),
+    MapEntry('comédia', 'Comédia'),
+    MapEntry('suspense', 'Suspense'),
+    MapEntry('crime', 'Crime'),
+    MapEntry('faroeste', 'Faroeste'),
+    MapEntry('nacionais', 'Nacionais'),
+    MapEntry('infantis', 'Infantis'),
+    MapEntry('marvel', 'Marvel & DC'),
+  ];
+
   // Dados para a Home
   XtreamStream? _featuredSeries;
   List<XtreamStream> _top10Series = [];
   List<XtreamStream> _popularSeries = [];
   final Map<String, List<XtreamStream>> _categoryContent = {};
-  
+
   // Lista mestra para busca
   List<XtreamStream> _allLoadedSeries = [];
-  
+
   // Cache de metadados do TMDB (ID -> Dados)
   final Map<String, Map<String, dynamic>> _tmdbCache = {};
 
@@ -129,6 +183,120 @@ class _SeriesCatalogScreenState extends State<SeriesCatalogScreen> {
   void initState() {
     super.initState();
     _loadHomeData();
+  }
+
+  String _seriesCategoryDisplayName(XtreamCategory cat) {
+    final n = cat.categoryName.toLowerCase();
+    for (final e in _kSeriesSectionLabels) {
+      if (n.contains(e.key)) return e.value;
+    }
+    final t = cat.categoryName.trim();
+    final lower = t.toLowerCase();
+    if (lower.startsWith('séries') || lower.startsWith('series')) {
+      final parts = t.split('|');
+      if (parts.length >= 2) {
+        return parts.sublist(1).join('|').trim();
+      }
+    }
+    return cat.categoryName;
+  }
+
+  /// Escolhe categorias alinhadas a listas tipo "SÉRIES | NETFLIX" (máx. [max] pedidos em paralelo).
+  List<XtreamCategory> _pickSeriesCategoriesToLoad(List<XtreamCategory> categories, {int max = 14}) {
+    final seen = <String>{};
+    final out = <XtreamCategory>[];
+
+    void add(XtreamCategory? c) {
+      if (c == null || c.categoryId.isEmpty || seen.contains(c.categoryId)) return;
+      if (out.length >= max) return;
+      seen.add(c.categoryId);
+      out.add(c);
+    }
+
+    XtreamCategory? findLancamentosRange() {
+      for (final c in categories) {
+        final n = c.categoryName.toLowerCase();
+        final range = n.contains('2025-2026') || n.contains('2025–2026') || n.contains('2025/2026');
+        final isLanc = n.contains('lançament') || n.contains('lancament');
+        if (range && isLanc) return c;
+      }
+      return null;
+    }
+
+    add(findLancamentosRange());
+
+    const recentHints = ['recentement', 'adicionado', 'recém adicion', 'continue watch', 'continue'];
+    for (final h in recentHints) {
+      for (final c in categories) {
+        if (c.categoryName.toLowerCase().contains(h)) {
+          add(c);
+          break;
+        }
+      }
+    }
+
+    const platformOrder = [
+      'netflix',
+      'amazon prime',
+      'prime video',
+      '| max',
+      'disney plus',
+      'disney+',
+      'discovery plus',
+      'apple tv',
+      'paramount',
+      'star plus',
+      'star+',
+      'crunchyroll',
+      'funimation',
+      'dorama',
+      'novela',
+      'globoplay',
+      'malhação',
+      'malhacao',
+      'looke',
+      'oldflix',
+      'mgm plus',
+      'lionsgate',
+      'directv',
+      'turcas',
+      'claro video',
+      'claro tv',
+      'documentár',
+      'legendado',
+      'outras produtor',
+      'brasil paralelo',
+      ' sbt',
+      'religios',
+      'romance',
+      'animacao',
+      'animação',
+      'fantasia',
+      'comedia',
+      'comédia',
+      'suspense',
+      'crime',
+      'faroeste',
+      'nacionais',
+      'infantis',
+      'marvel',
+    ];
+    for (final hint in platformOrder) {
+      for (final c in categories) {
+        if (c.categoryName.toLowerCase().contains(hint)) {
+          add(c);
+          break;
+        }
+      }
+    }
+
+    for (final c in categories.take(6)) {
+      add(c);
+    }
+    for (final c in categories) {
+      add(c);
+    }
+    return out;
   }
 
   Future<void> _loadHomeData() async {
@@ -139,16 +307,19 @@ class _SeriesCatalogScreenState extends State<SeriesCatalogScreen> {
       final baseUrl = provider.xtreamBaseUrl;
       final username = provider.xtreamUsername;
       final password = provider.xtreamPassword;
-      
+
       if (baseUrl != null) {
         final service = XtreamService();
         service.configure(baseUrl, username!, password!);
 
-        // TMDB + categorias Xtream em paralelo — a página abre rápido.
-        // getAllSeries() (lista gigante) corre depois em segundo plano para a busca.
-        final categoriesToLoad = provider.seriesCategories.take(4).toList();
+        var categories = provider.seriesCategories;
+        if (categories.isEmpty) {
+          categories = await service.getSeriesCategories();
+        }
+
+        final categoriesToLoad = _pickSeriesCategoriesToLoad(categories, max: 14);
         final catFutures = categoriesToLoad
-            .map((cat) => service.getSeries(categoryId: cat.categoryId))
+            .map((cat) => service.getSeries(categoryId: cat.categoryId).timeout(const Duration(seconds: 12), onTimeout: () => <XtreamStream>[]))
             .toList();
 
         final results = await Future.wait([
@@ -163,8 +334,17 @@ class _SeriesCatalogScreenState extends State<SeriesCatalogScreen> {
         _categoryContent.clear();
         for (var i = 0; i < categoriesToLoad.length; i++) {
           final series = results[i + 2] as List<XtreamStream>;
-          if (series.isNotEmpty) {
-            _categoryContent[categoriesToLoad[i].categoryName] = series;
+          if (series.isEmpty) continue;
+          final label = _seriesCategoryDisplayName(categoriesToLoad[i]);
+          final existing = _categoryContent[label];
+          if (existing == null || existing.isEmpty) {
+            _categoryContent[label] = series;
+          } else {
+            final byId = {for (final s in existing) s.streamId: s};
+            for (final s in series) {
+              byId[s.streamId] = s;
+            }
+            _categoryContent[label] = byId.values.toList();
           }
         }
 
@@ -187,7 +367,6 @@ class _SeriesCatalogScreenState extends State<SeriesCatalogScreen> {
           }
         }
 
-        // Lista completa para pesquisa (pode ser lenta no servidor — não bloqueia a UI)
         service.getAllSeries().then((full) {
           if (!mounted) return;
           setState(() => _allLoadedSeries = full);
@@ -242,6 +421,66 @@ class _SeriesCatalogScreenState extends State<SeriesCatalogScreen> {
       }
     }
     return matched;
+  }
+
+  static const List<String> _kSeriesSectionOrder = [
+    'Lançamentos 2025-2026',
+    'Recentemente adicionados',
+    'Continue assistindo',
+    'Netflix',
+    'Prime Video',
+    'Max',
+    'Disney+',
+    'Discovery+',
+    'Apple TV+',
+    'Paramount+',
+    'Star+',
+    'Crunchyroll',
+    'Funimation',
+    'Dorama',
+    'Novelas',
+    'Globoplay',
+    'Malhação',
+    'Looke',
+    'Oldflix',
+    'MGM+',
+    'Lionsgate',
+    'DIRECTV',
+    'Turcas',
+    'Claro video',
+    'Claro TV+',
+    'Documentários',
+    'Legendados',
+    'Outras produtoras',
+    'Brasil Paralelo',
+    'SBT',
+    'Religiosos',
+    'Romance',
+    'Animação',
+    'Fantasia',
+    'Comédia',
+    'Suspense',
+    'Crime',
+    'Faroeste',
+    'Nacionais',
+    'Infantis',
+    'Marvel & DC',
+  ];
+
+  List<MapEntry<String, List<XtreamStream>>> _orderedSeriesSections() {
+    final ordered = <MapEntry<String, List<XtreamStream>>>[];
+    for (final title in _kSeriesSectionOrder) {
+      final list = _categoryContent[title];
+      if (list != null && list.isNotEmpty) {
+        ordered.add(MapEntry(title, list));
+      }
+    }
+    for (final e in _categoryContent.entries) {
+      if (!_kSeriesSectionOrder.contains(e.key)) {
+        ordered.add(e);
+      }
+    }
+    return ordered;
   }
 
   @override
@@ -305,9 +544,7 @@ class _SeriesCatalogScreenState extends State<SeriesCatalogScreen> {
             _buildHorizontalList('Top 10 Séries Hoje', _top10Series, isTop10: true),
           if (_popularSeries.isNotEmpty) 
             _buildHorizontalList('Populares no TMDB', _popularSeries),
-          ..._categoryContent.entries.map((entry) {
-            return _buildHorizontalList(entry.key, entry.value);
-          }),
+          ..._orderedSeriesSections().map((e) => _buildHorizontalList(e.key, e.value)),
         ],
       ),
     );

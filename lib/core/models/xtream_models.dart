@@ -54,6 +54,16 @@ class XtreamStream {
       containerExtension: json['container_extension'],
     );
   }
+
+  /// Timestamp Unix (segundos) do campo `added` do Xtream — para ordenar lançamentos.
+  int get addedEpochSeconds {
+    final a = added;
+    if (a == null) return 0;
+    if (a is int) return a;
+    if (a is num) return a.toInt();
+    if (a is String) return int.tryParse(a) ?? 0;
+    return 0;
+  }
 }
 
 class XtreamSeriesInfo {

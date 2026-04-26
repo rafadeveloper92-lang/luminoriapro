@@ -290,24 +290,91 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
         ServiceLocator.log.d('HomeScreen: Got ${categories.length} categories', tag: 'HomeScreen');
 
         ServiceLocator.log.d('HomeScreen: Fetching TMDB & Xtream Content...', tag: 'HomeScreen');
-        const preferredSections = [
-          ('documentar', 'Documentários'),
-          ('comédia', 'Filmes de Comédia'),
-          ('comedia', 'Filmes de Comédia'),
-          ('romance', 'Filmes de Romance'),
+        const preferredSections = <MapEntry<String, String>>[
+          MapEntry('lançament', 'Lançamentos'),
+          MapEntry('lancament', 'Lançamentos'),
+          MapEntry('lanc', 'Lançamentos'),
+          MapEntry('estreia', 'Estreias'),
+          MapEntry('novidade', 'Novidades'),
+          MapEntry('recent', 'Recentes'),
+          MapEntry('novo', 'Novidades'),
+          MapEntry('2025', '2025'),
+          MapEntry('2024', '2024'),
+          MapEntry('acao', 'Ação'),
+          MapEntry('açao', 'Ação'),
+          MapEntry('action', 'Ação'),
+          MapEntry('terror', 'Terror'),
+          MapEntry('horror', 'Terror'),
+          MapEntry('suspense', 'Suspense'),
+          MapEntry('thriller', 'Thriller'),
+          MapEntry('ficc', 'Ficção'),
+          MapEntry('sci-fi', 'Sci-Fi'),
+          MapEntry('drama', 'Drama'),
+          MapEntry('documentar', 'Documentários'),
+          MapEntry('comédia', 'Comédia'),
+          MapEntry('comedia', 'Comédia'),
+          MapEntry('romance', 'Romance'),
+          MapEntry('infantil', 'Infantil'),
+          MapEntry('kids', 'Infantil'),
+          MapEntry('anim', 'Animação'),
+          MapEntry('anime', 'Anime'),
+          MapEntry('nacion', 'Nacional'),
+          MapEntry('portugu', 'Nacional'),
+          MapEntry('guerra', 'Guerra'),
+          MapEntry('western', 'Western'),
         ];
-        final preferredCats = <XtreamCategory>[];
-        final seenIds = <String>{};
-        for (final entry in preferredSections) {
-          final keyword = entry.$1;
-          final found = categories.where((c) => c.categoryName.toLowerCase().contains(keyword)).toList();
-          if (found.isNotEmpty && !seenIds.contains(found.first.categoryId)) {
-            seenIds.add(found.first.categoryId);
-            preferredCats.add(found.first);
+
+        String displayNameForCategory(XtreamCategory cat) {
+          final n = cat.categoryName.toLowerCase();
+          for (final e in preferredSections) {
+            if (n.contains(e.key)) return e.value;
           }
+          return cat.categoryName;
         }
-        final firstCats = categories.take(3).toList();
-        final catsToLoad = [...firstCats, ...preferredCats];
+
+        final seenCatIds = <String>{};
+        final catsToLoad = <XtreamCategory>[];
+
+        void addCategory(XtreamCategory? c) {
+          if (c == null || c.categoryId.isEmpty) return;
+          if (seenCatIds.contains(c.categoryId)) return;
+          seenCatIds.add(c.categoryId);
+          catsToLoad.add(c);
+        }
+
+        // 1) Categoria que parece "lançamentos" (prioridade para conteúdo recente)
+        XtreamCategory? releasePick;
+        const releaseHints = [
+          'lançamento', 'lancamento', 'lancamentos', 'estreia', 'estreias',
+          'novidade', 'novidades', 'recém', 'recem', 'recent', 'novos', '2025', '2024',
+        ];
+        for (final hint in releaseHints) {
+          for (final c in categories) {
+            if (c.categoryName.toLowerCase().contains(hint)) {
+              releasePick = c;
+              break;
+            }
+          }
+          if (releasePick != null) break;
+        }
+        addCategory(releasePick);
+
+        // 2) Outras categorias por palavra-chave (nome amigável)
+        for (final entry in preferredSections) {
+          final found = categories.where((c) => c.categoryName.toLowerCase().contains(entry.key)).toList();
+          if (found.isNotEmpty) addCategory(found.first);
+        }
+
+        // 3) Primeiras categorias da lista do servidor (ordem do painel)
+        for (final c in categories.take(6)) {
+          addCategory(c);
+        }
+
+        // 4) Completar até ~14 categorias sem duplicar
+        for (final c in categories) {
+          if (catsToLoad.length >= 14) break;
+          addCategory(c);
+        }
 
         final results = await Future.wait([
           _tmdbService.getTrendingMovies().timeout(const Duration(seconds: 5), onTimeout: () => []),
@@ -317,27 +384,30 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
 
         ServiceLocator.log.d('HomeScreen: Fetched all data', tag: 'HomeScreen');
 
+        _movieCategoryContent.clear();
         final loadedStreams = <XtreamStream>[];
         for (int i = 2; i < results.length; i++) {
             final streams = results[i] as List<XtreamStream>;
             loadedStreams.addAll(streams);
             if (streams.isEmpty) continue;
             final cat = catsToLoad[i - 2];
-            if (i - 2 < 3) {
-              _movieCategoryContent[cat.categoryName] = streams;
-            } else {
-              String displayName = cat.categoryName;
-              for (final entry in preferredSections) {
-                if (cat.categoryName.toLowerCase().contains(entry.$1)) {
-                  displayName = entry.$2;
-                  break;
-                }
-              }
+            final displayName = displayNameForCategory(cat);
+            final existing = _movieCategoryContent[displayName];
+            if (existing == null || existing.isEmpty) {
               _movieCategoryContent[displayName] = streams;
+            } else {
+              final byId = {for (final s in existing) s.streamId: s};
+              for (final s in streams) {
+                byId[s.streamId] = s;
+              }
+              _movieCategoryContent[displayName] = byId.values.toList();
             }
         }
 
-        _newReleases = loadedStreams.take(15).toList();
+        // Lançamentos / mais recentes: ordenar por data `added` do Xtream (mais recente primeiro)
+        final forNewest = List<XtreamStream>.from(loadedStreams);
+        forNewest.sort((a, b) => b.addedEpochSeconds.compareTo(a.addedEpochSeconds));
+        _newReleases = forNewest.take(24).toList();
 
         loadedStreams.sort((a, b) => (double.tryParse(b.rating.toString()) ?? 0).compareTo(double.tryParse(a.rating.toString()) ?? 0));
         _top10Movies = loadedStreams.take(10).toList();
@@ -658,10 +728,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
               if (_homeSportsSlides.isNotEmpty) HomeSportsCarousel(slides: _homeSportsSlides),
               if (_featuredMovie != null) _buildHeroBanner(),
               const SizedBox(height: 20),
+              if (_newReleases.isNotEmpty) _buildHorizontalMovieSection('Lançamentos recentes', _newReleases),
+              const SizedBox(height: 20),
               if (_top10Movies.isNotEmpty) _buildSectionTitle('Top 10 Filmes da Semana'),
               if (_top10Movies.isNotEmpty) _buildTop10List(),
               const SizedBox(height: 20),
-              if (_newReleases.isNotEmpty) _buildHorizontalMovieSection('Filmes Lançamentos 2025', _newReleases),
               ..._orderedCategorySections().map((e) => _buildHorizontalMovieSection(e.key, e.value)),
               const SizedBox(height: 40),
             ],
@@ -671,17 +742,43 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
     );
   }
 
-  static const _categoryOrder = ['Documentários', 'Filmes de Comédia', 'Filmes de Romance'];
+  static const _categoryOrder = [
+    'Lançamentos',
+    'Estreias',
+    'Novidades',
+    'Recentes',
+    '2025',
+    '2024',
+    'Ação',
+    'Terror',
+    'Suspense',
+    'Thriller',
+    'Sci-Fi',
+    'Ficção',
+    'Drama',
+    'Comédia',
+    'Romance',
+    'Documentários',
+    'Infantil',
+    'Animação',
+    'Anime',
+    'Nacional',
+    'Guerra',
+    'Western',
+  ];
 
   List<MapEntry<String, List<XtreamStream>>> _orderedCategorySections() {
     final ordered = <MapEntry<String, List<XtreamStream>>>[];
+    final skipLancRow = _newReleases.isNotEmpty;
     for (final title in _categoryOrder) {
+      if (skipLancRow && title == 'Lançamentos') continue;
       final list = _movieCategoryContent[title];
       if (list != null && list.isNotEmpty) {
         ordered.add(MapEntry(title, list));
       }
     }
     for (final e in _movieCategoryContent.entries) {
+      if (skipLancRow && e.key == 'Lançamentos') continue;
       if (!_categoryOrder.contains(e.key)) ordered.add(e);
     }
     return ordered;

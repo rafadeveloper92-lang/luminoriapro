@@ -288,7 +288,6 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
           final xpBarLabel = nextRank != null
               ? '${xpInCurrentLevel.clamp(0, xpNeededForNext)} / $xpNeededForNext XP'
               : '$xp XP';
-          const rankCyan = Color(0xFF00D4E8);
           final equippedBorderKey = displayProfile?.equippedBorderKey ?? (isMe ? myProfileProv.equippedBorderKey : null);
 
           // Obter tema (próprio ou do amigo já carregado em _initProfile) para capa e decoração
@@ -389,7 +388,7 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
                         ),
                         const SizedBox(height: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                           decoration: BoxDecoration(
                             color: const Color(0xFF1C1C22),
                             borderRadius: BorderRadius.circular(12),
@@ -397,8 +396,13 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
                           ),
                           child: Row(
                             children: [
-                              Icon(Icons.shield_rounded, color: rankCyan.withOpacity(0.9), size: 22),
-                              const SizedBox(width: 10),
+                              RankBadgeWidget(
+                                rank: currentRank,
+                                size: 40,
+                                showLevel: false,
+                                unlocked: true,
+                              ),
+                              const SizedBox(width: 12),
                               Expanded(
                                 child: Text(
                                   levelLabel,
@@ -415,16 +419,6 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
                           ),
                         ),
                         const SizedBox(height: 10),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(999),
-                          child: LinearProgressIndicator(
-                            value: levelProgress.clamp(0.0, 1.0),
-                            minHeight: 5,
-                            backgroundColor: const Color(0xFF2A2A32),
-                            valueColor: const AlwaysStoppedAnimation<Color>(rankCyan),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
                         Text(
                           xpBarLabel,
                           textAlign: TextAlign.center,

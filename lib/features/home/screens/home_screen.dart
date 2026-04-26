@@ -298,9 +298,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
           MapEntry('novidade', 'Novidades'),
           MapEntry('recent', 'Recentes'),
           MapEntry('novo', 'Novidades'),
+          MapEntry('2027', '2027'),
           MapEntry('2026', '2026'),
           MapEntry('2025', '2025'),
           MapEntry('2024', '2024'),
+          MapEntry('2023', '2023'),
+          MapEntry('2022', '2022'),
           MapEntry('acao', 'Ação'),
           MapEntry('açao', 'Ação'),
           MapEntry('action', 'Ação'),
@@ -347,7 +350,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
         XtreamCategory? releasePick;
         const releaseHints = [
           'lançamento', 'lancamento', 'lancamentos', 'estreia', 'estreias',
-          'novidade', 'novidades', 'recém', 'recem', 'recent', 'novos', '2026', '2025', '2024',
+          'novidade', 'novidades', 'recém', 'recem', 'recent', 'novos',
+          '2027', '2026', '2025', '2024', '2023',
         ];
         for (final hint in releaseHints) {
           for (final c in categories) {
@@ -360,20 +364,32 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
         }
         addCategory(releasePick);
 
-        // 2) Outras categorias por palavra-chave (nome amigável)
+        // 2) Uma categoria por ano (2027→2022) — mesmo que o nome seja "FILMES | 2025"
+        for (final year in ['2027', '2026', '2025', '2024', '2023', '2022']) {
+          XtreamCategory? pick;
+          for (final c in categories) {
+            if (c.categoryName.contains(year)) {
+              pick = c;
+              break;
+            }
+          }
+          addCategory(pick);
+        }
+
+        // 3) Outras categorias por palavra-chave (nome amigável)
         for (final entry in preferredSections) {
           final found = categories.where((c) => c.categoryName.toLowerCase().contains(entry.key)).toList();
           if (found.isNotEmpty) addCategory(found.first);
         }
 
-        // 3) Primeiras categorias da lista do servidor (ordem do painel)
+        // 4) Primeiras categorias da lista do servidor (ordem do painel)
         for (final c in categories.take(6)) {
           addCategory(c);
         }
 
-        // 4) Completar até ~14 categorias sem duplicar
+        // 5) Completar até ~18 categorias sem duplicar
         for (final c in categories) {
-          if (catsToLoad.length >= 14) break;
+          if (catsToLoad.length >= 18) break;
           addCategory(c);
         }
 
@@ -748,9 +764,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
     'Estreias',
     'Novidades',
     'Recentes',
+    '2027',
     '2026',
     '2025',
     '2024',
+    '2023',
+    '2022',
     'Ação',
     'Terror',
     'Suspense',

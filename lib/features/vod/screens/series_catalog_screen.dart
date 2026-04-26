@@ -144,34 +144,40 @@ class _SeriesCatalogScreenState extends State<SeriesCatalogScreen> {
         final service = XtreamService();
         service.configure(baseUrl, username!, password!);
 
-        // 1. Carrega todas as séries do servidor (lista leve) para fazer o match e a busca
-        _allLoadedSeries = await service.getAllSeries();
-        final seriesMap = {for (var s in _allLoadedSeries) s.name.toLowerCase(): s};
+        // TMDB + categorias Xtream em paralelo — a página abre rápido.
+        // getAllSeries() (lista gigante) corre depois em segundo plano para a busca.
+        final categoriesToLoad = provider.seriesCategories.take(4).toList();
+        final catFutures = categoriesToLoad
+            .map((cat) => service.getSeries(categoryId: cat.categoryId))
+            .toList();
 
-        // 2. Busca Trending/Top Rated do TMDB em paralelo
         final results = await Future.wait([
           _tmdbService.getTrendingSeries(),
           _tmdbService.getTopRatedSeries(),
+          ...catFutures,
         ]);
 
-        final trendingTmdb = results[0];
-        final topRatedTmdb = results[1];
+        final trendingTmdb = results[0] as List<Map<String, dynamic>>;
+        final topRatedTmdb = results[1] as List<Map<String, dynamic>>;
 
-        // 3. Lógica de Match (TMDB -> Xtream)
-        _top10Series = _matchSeries(trendingTmdb, seriesMap);
-        _popularSeries = _matchSeries(topRatedTmdb, seriesMap);
-
-        // 4. Carrega algumas categorias do Xtream se não tiver matches suficientes
-        // ou apenas para complementar
-        final categoriesToLoad = provider.seriesCategories.take(3).toList();
-        for (final cat in categoriesToLoad) {
-          final series = await service.getSeries(categoryId: cat.categoryId);
+        _categoryContent.clear();
+        for (var i = 0; i < categoriesToLoad.length; i++) {
+          final series = results[i + 2] as List<XtreamStream>;
           if (series.isNotEmpty) {
-            _categoryContent[cat.categoryName] = series;
+            _categoryContent[categoriesToLoad[i].categoryName] = series;
           }
         }
 
-        // 5. Define o destaque (Featured)
+        final seriesMap = <String, XtreamStream>{};
+        for (final list in _categoryContent.values) {
+          for (final s in list) {
+            seriesMap.putIfAbsent(s.name.toLowerCase(), () => s);
+          }
+        }
+
+        _top10Series = _matchSeries(trendingTmdb, seriesMap);
+        _popularSeries = _matchSeries(topRatedTmdb, seriesMap);
+
         if (_top10Series.isNotEmpty) {
           _featuredSeries = _top10Series.first;
         } else if (_categoryContent.isNotEmpty) {
@@ -180,6 +186,14 @@ class _SeriesCatalogScreenState extends State<SeriesCatalogScreen> {
             _featuredSeries = firstList[Random().nextInt(firstList.length)];
           }
         }
+
+        // Lista completa para pesquisa (pode ser lenta no servidor — não bloqueia a UI)
+        service.getAllSeries().then((full) {
+          if (!mounted) return;
+          setState(() => _allLoadedSeries = full);
+        }).catchError((e) {
+          debugPrint('getAllSeries (background): $e');
+        });
       }
     } catch (e) {
       debugPrint('Erro ao carregar home de séries: $e');

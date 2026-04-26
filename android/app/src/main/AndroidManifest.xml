@@ -18,7 +18,8 @@
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize"
-            android:stateNotNeeded="false">
+            android:stateNotNeeded="false"
+            android:supportsPictureInPicture="true">
             
             <meta-data
                 android:name="io.flutter.embedding.android.NormalTheme"

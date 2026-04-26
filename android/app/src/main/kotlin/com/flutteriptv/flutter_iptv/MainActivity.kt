@@ -1,11 +1,14 @@
 package com.flutteriptv.flutter_iptv
 
+import android.app.PictureInPictureParams
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.util.Rational
 import android.util.Log
 import android.view.KeyEvent
 import android.view.View
@@ -82,6 +85,33 @@ class MainActivity: FlutterFragmentActivity() {
                     }
                     Log.d(TAG, "setKeepScreenOn: $enable")
                     result.success(true)
+                }
+                "androidPipSupported" -> {
+                    val supported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+                        packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)
+                    result.success(supported)
+                }
+                "enterAndroidPip" -> {
+                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+                        result.success(false)
+                    } else {
+                        try {
+                            if (!packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)) {
+                                result.success(false)
+                            } else {
+                                val params = PictureInPictureParams.Builder()
+                                    .setAspectRatio(Rational(16, 9))
+                                    .build()
+                                setPictureInPictureParams(params)
+                                enterPictureInPictureMode(params)
+                                Log.d(TAG, "enterAndroidPip: entered PiP")
+                                result.success(true)
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "enterAndroidPip failed", e)
+                            result.success(false)
+                        }
+                    }
                 }
                 else -> {
                     result.notImplemented()

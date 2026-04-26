@@ -13,6 +13,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/tv_focusable.dart';
 import '../../../core/platform/platform_detector.dart';
 import '../../../core/platform/native_player_channel.dart';
+import '../../../core/platform/android_pip_channel.dart';
 import '../../../core/platform/windows_pip_channel.dart';
 import '../../../core/platform/windows_fullscreen_native.dart';
 import '../../../core/models/channel.dart';
@@ -1317,22 +1318,21 @@ class _PlayerScreenState extends State<PlayerScreen>
                   // Video Player
                   _buildVideoPlayer(),
 
-                  // Controls Overlay - 分屏模式下不显示全局控制栏
-                  if (!_isMultiScreenMode())
+                  // Controls overlay: com cadeado ativo não montar AnimatedOpacity a opacidade 1 com filho vazio
+                  // (alguns dispositivos compõem uma camada opaca por cima do vídeo → tela preta).
+                  if (!_isMultiScreenMode() && !_controlsLocked)
                     AnimatedOpacity(
-                      opacity: (_showControls || _controlsLocked) ? 1.0 : 0.0,
+                      opacity: _showControls ? 1.0 : 0.0,
                       duration: const Duration(milliseconds: 300),
                       child: IgnorePointer(
-                        ignoring: _controlsLocked || !_showControls,
-                        child: _controlsLocked
-                            ? const SizedBox.shrink()
-                            : (WindowsPipChannel.isInPipMode
-                                ? _buildMiniControlsOverlay()
-                                : _buildControlsOverlay()),
+                        ignoring: !_showControls,
+                        child: WindowsPipChannel.isInPipMode
+                            ? _buildMiniControlsOverlay()
+                            : _buildControlsOverlay(),
                       ),
                     ),
-                  // Botão desbloquear quando controles travados (só ele recebe toque)
-                  if (_controlsLocked && !_isMultiScreenMode() && !WindowsPipChannel.isInPipMode)
+                  // Botão desbloquear quando controles travados (inclui PiP Windows / Android)
+                  if (_controlsLocked && !_isMultiScreenMode())
                     Positioned(
                       right: 16,
                       bottom: 120,
@@ -2162,10 +2162,13 @@ class _PlayerScreenState extends State<PlayerScreen>
             },
           ),
 
-          // PiP 迷你播放器按钮 - 仅 Windows
+          // PiP: Windows (janela) ou Android telefone (Picture-in-Picture do sistema)
           if (WindowsPipChannel.isSupported) ...[
             const SizedBox(width: 8),
             _buildPipButton(),
+          ] else if (PlatformDetector.isMobile) ...[
+            const SizedBox(width: 8),
+            _buildAndroidPipButton(),
           ],
 
           // 分屏模式按钮 - 仅桌面平台
@@ -2299,6 +2302,49 @@ class _PlayerScreenState extends State<PlayerScreen>
               ),
             ],
           ],
+        );
+      },
+    );
+  }
+
+  /// Picture-in-Picture do sistema (Android telefone). Não disponível em Android TV.
+  Widget _buildAndroidPipButton() {
+    return FutureBuilder<bool>(
+      future: AndroidPipChannel.supportFuture(),
+      builder: (context, snap) {
+        if (snap.connectionState != ConnectionState.done || snap.data != true) {
+          return const SizedBox.shrink();
+        }
+        return TVFocusable(
+          onSelect: () async {
+            final ok = await AndroidPipChannel.enterPiP();
+            if (!mounted) return;
+            if (!ok) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('PiP não disponível neste aparelho.'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            }
+          },
+          focusScale: 1.0,
+          showFocusBorder: false,
+          builder: (context, isFocused, child) {
+            return Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: isFocused ? AppTheme.getPrimaryColor(context) : const Color(0x33FFFFFF),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: isFocused ? AppTheme.getPrimaryColor(context) : const Color(0x1AFFFFFF),
+                  width: isFocused ? 2 : 1,
+                ),
+              ),
+              child: child,
+            );
+          },
+          child: const Icon(Icons.picture_in_picture_alt_rounded, color: Colors.white, size: 18),
         );
       },
     );

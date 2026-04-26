@@ -50,6 +50,10 @@ Ou use o **Painel Administrativo** no app (Configurações → Entrar como admin
 
 ---
 
+## Lista IPTV (admin define Xtream para o cliente)
+
+Depois de **02_admins** e **07_user_profiles**, execute **34_admin_iptv_playlist.sql** para criar `admin_iptv_playlist`. O painel admin ganha o separador **IPTV lista**: pesquisa cliente, servidor, user e pass; o app do cliente importa canais ao abrir a **Home**.
+
 ## Ranking mensal — moedas no fim do mês
 
 Depois de **12_monthly_watch_time.sql** e **24_global_ranking_all_users.sql**, execute **33_monthly_ranking_coin_payout.sql**:

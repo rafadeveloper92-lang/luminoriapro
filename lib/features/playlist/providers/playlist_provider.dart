@@ -4,6 +4,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
 import '../../../core/models/playlist.dart';
 import '../../../core/models/channel.dart';
+import '../../../core/services/admin_iptv_playlist_service.dart';
 import '../../../core/services/service_locator.dart';
 import '../../../core/services/xtream_service.dart';
 import '../../../core/utils/m3u_parser.dart';
@@ -29,6 +30,33 @@ class PlaylistProvider extends ChangeNotifier {
   double get importProgress => _importProgress;
 
   bool get hasPlaylists => _playlists.isNotEmpty;
+
+  /// Lista existente com a mesma URL Xtream (para evitar duplicar import do admin).
+  Playlist? findPlaylistByXtreamUrl(String xtreamUrl) {
+    final t = xtreamUrl.trim();
+    if (t.isEmpty) return null;
+    for (final p in _playlists) {
+      if (p.url != null && p.url!.trim() == t) return p;
+    }
+    return null;
+  }
+
+  /// Substitui lista local com a mesma URL Xtream e importa de novo (lista definida pelo admin na nuvem).
+  Future<void> importAdminXtreamPlaylist(AdminIptvPlaylistRow row) async {
+    final url = row.xtreamUrl.trim();
+    if (url.isEmpty || !url.startsWith('xtream://')) {
+      throw Exception('URL Xtream inválida');
+    }
+    final existing = findPlaylistByXtreamUrl(url);
+    if (existing?.id != null) {
+      await deletePlaylist(existing!.id!);
+    }
+    final name = row.playlistName.trim().isEmpty ? 'IPTV Principal' : row.playlistName.trim();
+    final added = await addPlaylistFromUrl(name, url);
+    if (added != null) {
+      await setActivePlaylist(added);
+    }
+  }
 
   String _sortBy = 'name ASC';
   String get sortBy => _sortBy;
@@ -616,7 +644,7 @@ class PlaylistProvider extends ChangeNotifier {
   }
 
   // Set active playlist
-  void setActivePlaylist(Playlist playlist, {Function(int)? onPlaylistChanged, FavoritesProvider? favoritesProvider}) async {
+  Future<void> setActivePlaylist(Playlist playlist, {Function(int)? onPlaylistChanged, FavoritesProvider? favoritesProvider}) async {
     _activePlaylist = playlist;
 
     if (playlist.id != null) {
@@ -632,6 +660,7 @@ class PlaylistProvider extends ChangeNotifier {
           where: 'id = ?',
           whereArgs: [playlist.id],
         );
+        await ServiceLocator.prefs.setInt('active_playlist_id', playlist.id!);
       } catch (_) {}
     }
 

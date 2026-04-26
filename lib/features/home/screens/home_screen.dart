@@ -14,6 +14,8 @@ import '../../../core/services/update_service.dart';
 import '../../../core/services/service_locator.dart';
 import '../../../core/services/user_activity_service.dart';
 import '../../../core/config/license_config.dart';
+import '../../../core/services/admin_auth_service.dart';
+import '../../../core/services/admin_iptv_playlist_service.dart';
 import '../../../core/services/tmdb_service.dart';
 import '../../../core/services/xtream_service.dart';
 import '../../../core/models/xtream_models.dart';
@@ -239,6 +241,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
     final channelProvider = context.read<ChannelProvider>();
     final favoritesProvider = context.read<FavoritesProvider>();
 
+    await _syncAdminIptvPlaylistIfNeeded();
+
     if (!playlistProvider.hasPlaylists) {
       ServiceLocator.log.d('HomeScreen: No playlists, loading...', tag: 'HomeScreen');
       await playlistProvider.loadPlaylists();
@@ -262,6 +266,25 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
         ServiceLocator.log.d('HomeScreen: Still no playlists', tag: 'HomeScreen');
         setState(() => _isLoadingMovies = false);
         _loadHomeSports();
+    }
+  }
+
+  /// Lista Xtream gravada pelo admin no Supabase — importa canais na primeira vez ou quando mudar.
+  Future<void> _syncAdminIptvPlaylistIfNeeded() async {
+    if (!LicenseConfig.isConfigured) return;
+    if (AdminAuthService.instance.currentUserId == null) return;
+    try {
+      final row = await AdminIptvPlaylistService.instance.fetchForCurrentUser();
+      if (row == null || !mounted) return;
+      final sig = AdminIptvPlaylistService.syncSignature(row);
+      final last = await AdminIptvPlaylistService.getLastSyncSignature();
+      if (last == sig) return;
+      final playlistProvider = context.read<PlaylistProvider>();
+      await playlistProvider.importAdminXtreamPlaylist(row);
+      await AdminIptvPlaylistService.setLastSyncSignature(sig);
+      ServiceLocator.log.i('Lista IPTV (admin) sincronizada: ${row.playlistName}', tag: 'HomeScreen');
+    } catch (e) {
+      ServiceLocator.log.e('Sync lista IPTV admin falhou', tag: 'HomeScreen', error: e);
     }
   }
 

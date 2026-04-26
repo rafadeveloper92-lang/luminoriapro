@@ -6,6 +6,10 @@ import 'service_locator.dart';
 enum AppNotificationType {
   newMessage,
   newFriendRequest,
+  /// Amigo começou a reproduzir um título novo (user_status.playing_content).
+  friendWatching,
+  /// Amigo passou a online vindo de offline.
+  friendOnline,
 }
 
 /// Dados de uma notificação a exibir.
@@ -61,6 +65,44 @@ class NotificationService {
   }
 
   /// Mostra notificação de nova solicitação de amizade.
+  /// Banner: amigo está a assistir a [contentTitle] (filme/série/canal).
+  void showFriendWatching({
+    required String friendDisplayName,
+    required String friendUserId,
+    String? avatarUrl,
+    required String contentTitle,
+  }) {
+    if (!_controller.isClosed) {
+      final short = contentTitle.length > 48 ? '${contentTitle.substring(0, 48)}…' : contentTitle;
+      _controller.add(AppNotification(
+        type: AppNotificationType.friendWatching,
+        title: 'Amigo a assistir',
+        body: '$friendDisplayName: $short',
+        peerUserId: friendUserId,
+        peerDisplayName: friendDisplayName,
+        peerAvatarUrl: avatarUrl,
+      ));
+    }
+  }
+
+  /// Banner: amigo entrou na app (online após offline).
+  void showFriendOnline({
+    required String friendDisplayName,
+    required String friendUserId,
+    String? avatarUrl,
+  }) {
+    if (!_controller.isClosed) {
+      _controller.add(AppNotification(
+        type: AppNotificationType.friendOnline,
+        title: 'Amigo online',
+        body: '$friendDisplayName entrou na app',
+        peerUserId: friendUserId,
+        peerDisplayName: friendDisplayName,
+        peerAvatarUrl: avatarUrl,
+      ));
+    }
+  }
+
   void showNewFriendRequest({
     required String fromDisplayName,
     required String fromUserId,

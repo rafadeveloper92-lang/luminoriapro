@@ -32,6 +32,15 @@ class FriendsProvider extends ChangeNotifier {
   RealtimeChannel? _realtimeChannel;
   Timer? _statusRefreshTimer;
 
+  /// `friend_user_id` dos amigos (para filtrar eventos `user_status` sem query extra).
+  Set<String> _friendPeerUserIds = {};
+
+  /// Evita spam de banner "online" (heartbeat de outros users).
+  final Map<String, DateTime> _lastFriendOnlineBannerAt = {};
+
+  /// Último `playing_content` visto por amigo (Realtime nem sempre envia `oldRecord`).
+  final Map<String, String> _lastKnownPlayingByFriendId = {};
+
   void _onIncomingMessageForBadge(DirectMessage msg) {
     _refreshUnreadCount();
     _showNewMessageNotification(msg);
@@ -47,6 +56,66 @@ class FriendsProvider extends ChangeNotifier {
     final v = _pendingOpenFriendsPanel;
     _pendingOpenFriendsPanel = false;
     return v;
+  }
+
+  /// Banners quando um amigo atualiza `user_status` (assistindo novo título ou voltou online).
+  void _maybeShowFriendStatusBanner(dynamic payload) {
+    try {
+      final me = AdminAuthService.instance.currentUserId;
+      final nr = payload?.newRecord;
+      if (nr == null) return;
+      final row = Map<String, dynamic>.from(nr as Map);
+      final uid = row['user_id']?.toString();
+      if (uid == null || uid.isEmpty || uid == me) return;
+      if (!_friendPeerUserIds.contains(uid)) return;
+
+      final newStatus = row['status']?.toString() ?? '';
+      final newPlaying = row['playing_content']?.toString().trim() ?? '';
+
+      Map<String, dynamic>? oldRow;
+      try {
+        final or = payload?.oldRecord;
+        if (or != null) oldRow = Map<String, dynamic>.from(or as Map);
+      } catch (_) {}
+
+      final oldStatus = oldRow?['status']?.toString();
+      final oldPlayingFromPayload = oldRow?['playing_content']?.toString().trim() ?? '';
+      final prevPlaying = _lastKnownPlayingByFriendId[uid];
+
+      if (newPlaying.isNotEmpty) {
+        final changedVsPayload = oldRow != null && newPlaying != oldPlayingFromPayload;
+        final changedVsMemory = prevPlaying != newPlaying;
+        if (changedVsPayload || (oldRow == null && changedVsMemory)) {
+          UserProfileService.instance.getProfile(uid).then((p) {
+            NotificationService.instance.showFriendWatching(
+              friendDisplayName: p?.displayName?.trim().isNotEmpty == true ? p!.displayName! : 'Amigo',
+              friendUserId: uid,
+              avatarUrl: p?.avatarUrl,
+              contentTitle: newPlaying,
+            );
+          });
+        }
+        _lastKnownPlayingByFriendId[uid] = newPlaying;
+        return;
+      }
+
+      _lastKnownPlayingByFriendId.remove(uid);
+
+      if (newStatus == 'online' && oldStatus == 'offline') {
+        final now = DateTime.now();
+        final last = _lastFriendOnlineBannerAt[uid];
+        if (last != null && now.difference(last) < const Duration(minutes: 2)) return;
+        _lastFriendOnlineBannerAt[uid] = now;
+
+        UserProfileService.instance.getProfile(uid).then((p) {
+          NotificationService.instance.showFriendOnline(
+            friendDisplayName: p?.displayName?.trim().isNotEmpty == true ? p!.displayName! : 'Amigo',
+            friendUserId: uid,
+            avatarUrl: p?.avatarUrl,
+          );
+        });
+      }
+    } catch (_) {}
   }
 
   void _tryShowNewFriendRequestNotification(dynamic payload) {
@@ -188,16 +257,18 @@ class FriendsProvider extends ChangeNotifier {
             event: PostgresChangeEvent.update,
             schema: 'public',
             table: 'user_status',
-            callback: (_) {
+            callback: (payload) {
               loadAll();
+              _maybeShowFriendStatusBanner(payload);
             },
           )
           .onPostgresChanges(
             event: PostgresChangeEvent.insert,
             schema: 'public',
             table: 'user_status',
-            callback: (_) {
+            callback: (payload) {
               loadAll();
+              _maybeShowFriendStatusBanner(payload);
             },
           )
           .onPostgresChanges(
@@ -289,6 +360,10 @@ class FriendsProvider extends ChangeNotifier {
       _userStatus = await _service.getUserStatus();
       _playingContent = await _service.getUserPlayingContent();
       _friends = await _service.getFriendsFiltered(filter: _filter, searchQuery: _searchQuery.isEmpty ? null : _searchQuery);
+      _friendPeerUserIds = _friends
+          .map((f) => f.peerUserId ?? '')
+          .where((id) => id.isNotEmpty)
+          .toSet();
       _unreadMessagesCount = await DirectMessageService.instance.getUnreadCount();
       _unreadBySender = await DirectMessageService.instance.getUnreadCountBySender();
     } finally {

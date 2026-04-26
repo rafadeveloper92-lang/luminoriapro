@@ -10,7 +10,7 @@ import '../navigation/app_router.dart';
 import '../services/notification_service.dart';
 import '../theme/app_theme.dart';
 
-/// Banner de notificação que aparece no topo quando há nova mensagem ou pedido de amizade.
+/// Banner de notificação no topo (mensagens, pedidos de amizade, amigo online / a assistir).
 class NotificationBannerOverlay extends StatefulWidget {
   final Widget child;
 
@@ -86,6 +86,15 @@ class _NotificationBannerOverlayState extends State<NotificationBannerOverlay> {
           AppRouter.home,
           (r) => r.isFirst,
         );
+        break;
+      case AppNotificationType.friendWatching:
+      case AppNotificationType.friendOnline:
+        if (n.peerUserId != null) {
+          navigator.pushNamed(
+            AppRouter.profile,
+            arguments: {'userId': n.peerUserId},
+          );
+        }
         break;
     }
   }

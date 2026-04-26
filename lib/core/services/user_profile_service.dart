@@ -67,6 +67,23 @@ class UserProfileService {
     }
   }
 
+  /// True se o utilizador com [userId] é administrador (email em `admins`). Requer RPC `is_admin_user` (32_public_is_admin_user.sql).
+  Future<bool> isAdminUser(String userId) async {
+    final client = _client;
+    if (client == null || userId.isEmpty) return false;
+    try {
+      final res = await client.rpc('is_admin_user', params: {'p_user_id': userId});
+      if (res == null) return false;
+      if (res is bool) return res;
+      if (res is String) return res.toLowerCase() == 'true' || res == 't';
+      if (res is num) return res != 0;
+      return false;
+    } catch (e, st) {
+      ServiceLocator.log.e('UserProfileService.isAdminUser', tag: 'Profile', error: e, stackTrace: st);
+      return false;
+    }
+  }
+
   /// Soma minutos assistidos no mês atual (ranking global mensal = tabela monthly_watch_time). Chamar ao reportar sessão.
   /// Requer: Supabase configurado, usuário logado, e migração supabase/12_monthly_watch_time.sql executada.
   Future<bool> addMonthlyWatchMinutes(int minutes) async {

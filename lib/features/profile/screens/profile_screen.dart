@@ -17,6 +17,7 @@ import '../providers/profile_provider.dart';
 import '../providers/theme_provider.dart';
 import '../widgets/rank_badge_widget.dart';
 import '../widgets/animated_profile_avatar.dart';
+import '../widgets/profile_admin_badge_chip.dart';
 import '../widgets/theme_decorations.dart';
 import '../../../core/services/theme_service.dart';
 
@@ -100,6 +101,8 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
   UserProfile? _otherUserProfile;
   int? _otherFriendCount;
   bool _isLoadingOther = false;
+  /// Dono do perfil em ecrã (eu ou amigo) é admin; null = ainda não carregado.
+  bool? _profileOwnerIsAdmin;
 
   @override
   void initState() {
@@ -170,17 +173,22 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
     final myId = context.read<ProfileProvider>().currentUserId;
 
     if (widget.userId != null && widget.userId != myId) {
-      setState(() => _isLoadingOther = true);
+      setState(() {
+        _isLoadingOther = true;
+        _profileOwnerIsAdmin = null;
+      });
       try {
         final otherId = widget.userId!;
         final p = await UserProfileService.instance.getProfile(otherId);
         final history = await VodWatchHistoryService.instance.getWatchHistoryForUser(otherId, limit: 30);
         final friendCount = await FriendsService.instance.getFriendCountForUser(otherId);
+        final isAdminProfile = await UserProfileService.instance.isAdminUser(otherId);
         if (mounted) {
           setState(() {
             _otherUserProfile = p ?? UserProfile(userId: otherId);
             _vodHistory = history;
             _otherFriendCount = friendCount;
+            _profileOwnerIsAdmin = isAdminProfile;
             _isLoadingOther = false;
           });
           if (p != null && p.equippedThemeKey != null) {
@@ -188,7 +196,12 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
           }
         }
       } catch (e) {
-        if (mounted) setState(() => _isLoadingOther = false);
+        if (mounted) {
+          setState(() {
+            _isLoadingOther = false;
+            _profileOwnerIsAdmin = false;
+          });
+        }
       }
     } else {
       await context.read<ProfileProvider>().loadProfile();
@@ -202,6 +215,11 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
       if (!mounted) return;
       final history = await VodWatchHistoryService.instance.getWatchHistory(limit: 30);
       if (mounted) setState(() => _vodHistory = history);
+      bool isAdminProfile = false;
+      if (myId != null && myId.isNotEmpty) {
+        isAdminProfile = await UserProfileService.instance.isAdminUser(myId);
+      }
+      if (mounted) setState(() => _profileOwnerIsAdmin = isAdminProfile);
       context.read<ProfileProvider>().startRealtimeSubscription(() {
         if (!mounted) return;
         context.read<ThemeProvider>().loadEquippedTheme(
@@ -352,14 +370,23 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
               const SliverToBoxAdapter(child: SizedBox(height: 60)),
               SliverToBoxAdapter(
                 child: Center(
-                  child: Text(
-                    displayName.toUpperCase(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        displayName.toUpperCase(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      if (_profileOwnerIsAdmin == true) ...[
+                        const SizedBox(height: 10),
+                        const ProfileAdminBadgeChip(),
+                      ],
+                    ],
                   ),
                 ),
               ),

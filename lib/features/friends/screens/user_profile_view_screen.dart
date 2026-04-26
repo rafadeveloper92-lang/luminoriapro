@@ -9,6 +9,7 @@ import '../../../core/services/user_profile_service.dart';
 import '../../../core/services/friends_service.dart';
 import '../../../core/models/user_profile.dart';
 import '../../profile/profile_ranks.dart';
+import '../../profile/widgets/profile_admin_badge_chip.dart';
 import '../providers/friends_provider.dart';
 
 /// Tela para ver o perfil de outro usuário (amigo, sugestão ou quem enviou pedido). Botões: Enviar solicitação / Aceitar-Rejeitar / Conversar, Excluir amigo.
@@ -41,6 +42,7 @@ class _UserProfileViewScreenState extends State<UserProfileViewScreen> {
   int? _friendCount;
   bool _loading = true;
   bool _loadError = false;
+  bool _isAdminUser = false;
 
   @override
   void initState() {
@@ -57,10 +59,12 @@ class _UserProfileViewScreenState extends State<UserProfileViewScreen> {
     try {
       final p = await UserProfileService.instance.getProfile(widget.userId);
       final count = await FriendsService.instance.getFriendCountForUser(widget.userId);
+      final isAdmin = await UserProfileService.instance.isAdminUser(widget.userId);
       if (mounted) {
         setState(() {
           _profile = p;
           _friendCount = count; // null em erro (não exibimos contagem)
+          _isAdminUser = isAdmin;
           _loading = false;
         });
       }
@@ -142,6 +146,10 @@ class _UserProfileViewScreenState extends State<UserProfileViewScreen> {
                     style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
                     textAlign: TextAlign.center,
                   ),
+                  if (_isAdminUser) ...[
+                    const SizedBox(height: 10),
+                    const ProfileAdminBadgeChip(),
+                  ],
                   const SizedBox(height: 8),
                   Text(
                     'Nível $level • $xp XP',

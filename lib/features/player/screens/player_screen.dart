@@ -1318,21 +1318,21 @@ class _PlayerScreenState extends State<PlayerScreen>
                   _buildVideoPlayer(),
 
                   // Controls Overlay - 分屏模式下不显示全局控制栏
-                  if (!_isMultiScreenMode())
+                  // Com cadeado ativo não empilhar overlay "vazia" com opacidade 1: em alguns GPUs o vídeo
+                  // fica por baixo de uma camada opaca e a tela parece preta.
+                  if (!_isMultiScreenMode() && !_controlsLocked)
                     AnimatedOpacity(
-                      opacity: (_showControls || _controlsLocked) ? 1.0 : 0.0,
+                      opacity: _showControls ? 1.0 : 0.0,
                       duration: const Duration(milliseconds: 300),
                       child: IgnorePointer(
-                        ignoring: _controlsLocked || !_showControls,
-                        child: _controlsLocked
-                            ? const SizedBox.shrink()
-                            : (WindowsPipChannel.isInPipMode
-                                ? _buildMiniControlsOverlay()
-                                : _buildControlsOverlay()),
+                        ignoring: !_showControls,
+                        child: WindowsPipChannel.isInPipMode
+                            ? _buildMiniControlsOverlay()
+                            : _buildControlsOverlay(),
                       ),
                     ),
-                  // Botão desbloquear quando controles travados (só ele recebe toque)
-                  if (_controlsLocked && !_isMultiScreenMode() && !WindowsPipChannel.isInPipMode)
+                  // Botão desbloquear quando controles travados (só ele recebe toque; inclui modo PiP)
+                  if (_controlsLocked && !_isMultiScreenMode())
                     Positioned(
                       right: 16,
                       bottom: 120,

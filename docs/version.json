@@ -1,27 +1,27 @@
 {
-  "version": "1.4.63",
-  "build": 183,
+  "version": "1.4.64",
+  "build": 184,
   "releaseDate": "2026-04-26",
   "assets": {
-    "windows": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.63/flutteriptv-Windows-x64-Setup.exe",
+    "windows": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.64/flutteriptv-Windows-x64-Setup.exe",
     "android_mobile": {
-      "arm64-v8a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.63/flutteriptv-Android-arm64.apk",
-      "armeabi-v7a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.63/flutteriptv-Android-arm64.apk",
-      "x86_64": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.63/flutteriptv-Android-arm64.apk"
+      "arm64-v8a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.64/flutteriptv-Android-arm64.apk",
+      "armeabi-v7a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.64/flutteriptv-Android-arm64.apk",
+      "x86_64": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.64/flutteriptv-Android-arm64.apk"
     },
     "android_tv": {
-      "arm64-v8a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.63/flutteriptv-Android-arm64.apk",
-      "armeabi-v7a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.63/flutteriptv-Android-arm64.apk",
-      "x86_64": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.63/flutteriptv-Android-arm64.apk"
+      "arm64-v8a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.64/flutteriptv-Android-arm64.apk",
+      "armeabi-v7a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.64/flutteriptv-Android-arm64.apk",
+      "x86_64": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.64/flutteriptv-Android-arm64.apk"
     },
     "ios": {
-      "universal": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.63/flutteriptv-iOS-unsigned.ipa"
+      "universal": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.64/flutteriptv-iOS-unsigned.ipa"
     }
   },
   "changelog": {
-    "pt": "Perfil: barra XP no bloco RANK; ícone da patente no rank; removida barra duplicada acima da linha do tempo\nPatentes PNG + modal premium (build anterior)",
-    "en": "Profile: XP bar under rank block; rank badge icon; removed duplicate XP section above timeline\nPremium rank assets",
-    "zh": "个人资料：等级区进度条；移除时间线上方重复进度条"
+    "pt": "Painel admin: separador IPTV lista — pesquisar cliente e gravar Xtream (URL na nuvem)\nCliente: import automático na Home (requer SQL 34_admin_iptv_playlist no Supabase)\nPerfil/patentes das versões anteriores",
+    "en": "Admin: IPTV list tab for Xtream credentials per user; client sync on Home\nRequires Supabase migration 34",
+    "zh": "管理端：IPTV Xtream 配置；首页同步"
   },
   "minVersion": "1.0.0"
 }

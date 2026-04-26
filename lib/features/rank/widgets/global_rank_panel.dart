@@ -111,19 +111,33 @@ class _GlobalRankPanelState extends State<GlobalRankPanel> {
 
             // Botão Ver Tudo
             Padding(
-              padding: const EdgeInsets.all(16),
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context); // Fecha painel
-                  Navigator.pushNamed(context, AppRouter.globalRank); // Abre tela cheia
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white12,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                child: const Text('VER RANKING COMPLETO', style: TextStyle(fontWeight: FontWeight.bold)),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context); // Fecha painel
+                      Navigator.pushNamed(context, AppRouter.globalRank); // Abre tela cheia
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.amber.withOpacity(0.18),
+                      foregroundColor: Colors.amber.shade100,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(color: Colors.amber.withOpacity(0.35)),
+                      ),
+                    ),
+                    child: const Text('VER RANKING COMPLETO', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Pódio, prémios em moedas e regras do mês',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white.withOpacity(0.45), fontSize: 11),
+                  ),
+                ],
               ),
             ),
           ],

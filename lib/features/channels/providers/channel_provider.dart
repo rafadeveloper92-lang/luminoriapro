@@ -50,6 +50,9 @@ class ChannelProvider extends ChangeNotifier {
     if (_selectedGroup == unavailableGroupName) {
       return _channels.where((c) => isUnavailableChannel(c.groupName)).toList();
     }
+    if (_selectedGroup == gamesOfDayVirtualGroupName) {
+      return _channels.where((c) => matchesGamesOfDayChannel(c)).toList();
+    }
     return _channels.where((c) => c.groupName == _selectedGroup).toList();
   }
 
@@ -223,6 +226,9 @@ class ChannelProvider extends ChangeNotifier {
       if (isUnavailableChannel(group)) {
         unavailableCount++;
       } else {
+        if (isGamesOfDayGroupName(group)) {
+          continue;
+        }
         if (!groupCounts.containsKey(group)) {
           groupOrder.add(group); 
         }
@@ -231,6 +237,11 @@ class ChannelProvider extends ChangeNotifier {
     }
 
     _groups = groupOrder.map((name) => ChannelGroup(name: name, channelCount: groupCounts[name] ?? 0)).toList();
+
+    final gamesCount = _channels.where((c) => matchesGamesOfDayChannel(c)).length;
+    if (gamesCount > 0) {
+      _groups.insert(0, ChannelGroup(name: gamesOfDayVirtualGroupName, channelCount: gamesCount));
+    }
 
     if (unavailableCount > 0) {
       _groups.add(ChannelGroup(name: unavailableGroupName, channelCount: unavailableCount));
@@ -263,6 +274,9 @@ class ChannelProvider extends ChangeNotifier {
   }
 
   List<Channel> getChannelsByGroup(String groupName) {
+    if (groupName == gamesOfDayVirtualGroupName) {
+      return _channels.where((c) => matchesGamesOfDayChannel(c)).toList();
+    }
     return _channels.where((c) => c.groupName == groupName).toList();
   }
 
@@ -325,6 +339,34 @@ class ChannelProvider extends ChangeNotifier {
 
   static const String unavailableGroupPrefix = '⚠️ 失效频道';
   static const String unavailableGroupName = '⚠️ 失效频道';
+
+  /// Grupo virtual (como em apps IPTV): junta canais de jogos do dia de várias pastas da lista.
+  static const String gamesOfDayVirtualGroupName = '⚽️ JOGOS DO DIA';
+
+  /// Nome de grupo físico na lista que já é só "jogos do dia" (não duplicar na barra lateral).
+  static bool isGamesOfDayGroupName(String? group) {
+    if (group == null || group.isEmpty) return false;
+    final s = group.trim().toLowerCase();
+    if (s.contains('jogos') && s.contains('dia')) return true;
+    if (s.contains('jogo') && s.contains('dia')) return true;
+    return false;
+  }
+
+  /// Canal entra em "Jogos do dia" se o grupo/nome seguir padrões comuns (lista M3U / Xtream).
+  static bool matchesGamesOfDayChannel(Channel c) {
+    if (isUnavailableChannel(c.groupName)) return false;
+    final g = (c.groupName ?? '').toLowerCase();
+    final n = c.name.toLowerCase();
+    if (isGamesOfDayGroupName(c.groupName)) return true;
+    if (g.contains('jogo') && (g.contains('dia') || g.contains('dodia') || g.contains('do dia'))) {
+      return true;
+    }
+    if (g.contains('futebol') && g.contains('dia')) return true;
+    if (g.contains('esporte') && g.contains('jogo')) return true;
+    if (n.contains('⏰')) return true;
+    if (RegExp(r'^\(?\d{1,3}\)?\s*⏰').hasMatch(n)) return true;
+    return false;
+  }
 
   static String? extractOriginalGroup(String? groupName) {
     if (groupName == null || !groupName.startsWith(unavailableGroupPrefix)) {

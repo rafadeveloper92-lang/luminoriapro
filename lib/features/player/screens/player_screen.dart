@@ -127,6 +127,17 @@ class _PlayerScreenState extends State<PlayerScreen>
     // 因为需要先初始化 _localMultiScreenMode
   }
 
+  @override
+  void didUpdateWidget(covariant PlayerScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.channelName != widget.channelName) {
+      FriendsService.instance.setUserPlayingContent(
+        widget.channelName,
+        forceRestartPlayingClock: true,
+      );
+    }
+  }
+
   Future<void> _enableWakelock() async {
     // 手机端使用原生方法确保屏幕常亮
     if (PlatformDetector.isMobile) {

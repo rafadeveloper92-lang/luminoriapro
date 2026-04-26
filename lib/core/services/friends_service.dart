@@ -61,7 +61,10 @@ class FriendsService {
           final uid = m['user_id']?.toString();
           if (uid != null) profilesMap[uid] = m;
         }
-        final statuses = await client.from(_tableUserStatus).select('user_id, status, playing_content, updated_at').inFilter('user_id', friendUserIds);
+        final statuses = await client
+            .from(_tableUserStatus)
+            .select('user_id, status, playing_content, playing_started_at, updated_at')
+            .inFilter('user_id', friendUserIds);
         for (final s in statuses) {
           final m = Map<String, dynamic>.from(s as Map);
           final uid = m['user_id']?.toString();
@@ -81,6 +84,8 @@ class FriendsService {
           orElse: () => FriendStatus.offline,
         );
         final lastSeenAt = s?['updated_at'] != null ? Friend.parseDateTime(s!['updated_at']) : null;
+        final playingStartedAt =
+            s?['playing_started_at'] != null ? Friend.parseDateTime(s!['playing_started_at']) : null;
         list.add(Friend(
           id: m['id']?.toString() ?? '',
           displayName: p?['display_name'] as String? ?? '',
@@ -89,6 +94,7 @@ class FriendsService {
           lastSeenAt: lastSeenAt,
           isFavorite: m['is_favorite'] as bool? ?? false,
           playingContent: s?['playing_content'] as String?,
+          playingStartedAt: playingStartedAt,
           position: m['position'] as int? ?? 0,
           createdAt: Friend.parseDateTime(m['created_at']),
           peerUserId: friendUserId,
@@ -276,7 +282,10 @@ class FriendsService {
 
       if (suggestionIds.isEmpty) return list;
 
-      final statuses = await client.from(_tableUserStatus).select('user_id, status, playing_content, updated_at').inFilter('user_id', suggestionIds);
+      final statuses = await client
+          .from(_tableUserStatus)
+          .select('user_id, status, playing_content, playing_started_at, updated_at')
+          .inFilter('user_id', suggestionIds);
       final statusMap = <String, Map<String, dynamic>>{};
       for (final s in statuses) {
         final m = Map<String, dynamic>.from(s as Map);
@@ -292,7 +301,14 @@ class FriendsService {
           orElse: () => FriendStatus.offline,
         );
         final lastSeenAt = s?['updated_at'] != null ? Friend.parseDateTime(s!['updated_at']) : null;
-        return f.copyWith(status: status, lastSeenAt: lastSeenAt, playingContent: s?['playing_content'] as String?);
+        final playingStartedAt =
+            s?['playing_started_at'] != null ? Friend.parseDateTime(s!['playing_started_at']) : null;
+        return f.copyWith(
+          status: status,
+          lastSeenAt: lastSeenAt,
+          playingContent: s?['playing_content'] as String?,
+          playingStartedAt: playingStartedAt,
+        );
       }).toList();
     } catch (e) {
       ServiceLocator.log.e('FriendsService.getSuggestions', tag: 'Friends', error: e);
@@ -474,21 +490,48 @@ class FriendsService {
   }
 
   /// Atualiza status do usuário. Ao ir para offline, limpa playing_content para não mostrar "Assistindo" para outros.
+  /// Em `online`, preserva `playing_content` existente (o ping periódico não pode apagar o que está a assistir).
   Future<bool> setUserStatus(String status) async {
     final client = _client;
     final userId = _userId;
     if (client == null || userId == null) return false;
 
     try {
-      final Map<String, dynamic> payload = {
+      final now = DateTime.now().toUtc().toIso8601String();
+      if (status == 'offline') {
+        await client.from(_tableUserStatus).upsert({
+          'user_id': userId,
+          'status': 'offline',
+          'playing_content': null,
+          'playing_started_at': null,
+          'updated_at': now,
+        }, onConflict: 'user_id');
+        return true;
+      }
+      String? keepPlaying;
+      String? keepPlayingStartedIso;
+      try {
+        final row = await client
+            .from(_tableUserStatus)
+            .select('playing_content, playing_started_at')
+            .eq('user_id', userId)
+            .maybeSingle();
+        final v = row?['playing_content'];
+        if (v != null && v.toString().trim().isNotEmpty) {
+          keepPlaying = v.toString();
+          final ps = row?['playing_started_at'];
+          if (ps != null) {
+            keepPlayingStartedIso = Friend.parseDateTime(ps).toUtc().toIso8601String();
+          }
+        }
+      } catch (_) {}
+      await client.from(_tableUserStatus).upsert({
         'user_id': userId,
         'status': status,
-        'updated_at': DateTime.now().toUtc().toIso8601String(),
-      };
-      if (status == 'offline') {
-        payload['playing_content'] = null;
-      }
-      await client.from(_tableUserStatus).upsert(payload, onConflict: 'user_id');
+        if (keepPlaying != null) 'playing_content': keepPlaying,
+        if (keepPlayingStartedIso != null) 'playing_started_at': keepPlayingStartedIso,
+        'updated_at': now,
+      }, onConflict: 'user_id');
       return true;
     } catch (e) {
       ServiceLocator.log.e('FriendsService.setUserStatus', tag: 'Friends', error: e);
@@ -497,17 +540,58 @@ class FriendsService {
   }
 
   /// Define o que o usuário está assistindo.
-  Future<bool> setUserPlayingContent(String? contentName) async {
+  /// [forceRestartPlayingClock] quando true (ex.: mudou de canal no mesmo ecrã), reinicia o relógio "há X min".
+  Future<bool> setUserPlayingContent(
+    String? contentName, {
+    bool forceRestartPlayingClock = false,
+  }) async {
     final client = _client;
     final userId = _userId;
     if (client == null || userId == null) return false;
 
     try {
+      final nowIso = DateTime.now().toUtc().toIso8601String();
+      final trimmed = contentName?.trim();
+      if (trimmed == null || trimmed.isEmpty) {
+        await client.from(_tableUserStatus).upsert({
+          'user_id': userId,
+          'status': 'online',
+          'playing_content': null,
+          'playing_started_at': null,
+          'updated_at': nowIso,
+        }, onConflict: 'user_id');
+        return true;
+      }
+
+      Map<String, dynamic>? row;
+      try {
+        row = await client
+            .from(_tableUserStatus)
+            .select('playing_content, playing_started_at, updated_at')
+            .eq('user_id', userId)
+            .maybeSingle();
+      } catch (_) {}
+
+      final prev = row?['playing_content']?.toString().trim();
+      final sameTitle = prev != null && prev == trimmed;
+      DateTime? startedUtc;
+      if (!forceRestartPlayingClock && sameTitle) {
+        final ps = row?['playing_started_at'];
+        if (ps != null) {
+          startedUtc = Friend.parseDateTime(ps).toUtc();
+        } else {
+          final upd = row?['updated_at'];
+          if (upd != null) startedUtc = Friend.parseDateTime(upd).toUtc();
+        }
+      }
+      startedUtc ??= DateTime.now().toUtc();
+
       await client.from(_tableUserStatus).upsert({
         'user_id': userId,
         'status': 'online',
-        'playing_content': contentName,
-        'updated_at': DateTime.now().toUtc().toIso8601String(),
+        'playing_content': trimmed,
+        'playing_started_at': startedUtc.toIso8601String(),
+        'updated_at': nowIso,
       }, onConflict: 'user_id');
       return true;
     } catch (e) {

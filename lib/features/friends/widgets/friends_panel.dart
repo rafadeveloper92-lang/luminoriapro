@@ -831,7 +831,9 @@ class _FriendCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final statusLabel = prov.getStatusLabel(friend);
+    final headline = prov.getStatusHeadline(friend);
+    final watchingTitle = prov.getWatchingTitle(friend);
+    final watchingSince = prov.getWatchingSinceLabel(friend);
     final isBrowsing = prov.isBrowsing(friend);
     final isWatching = prov.isWatching(friend);
 
@@ -907,7 +909,7 @@ class _FriendCard extends StatelessWidget {
           ),
           const SizedBox(height: 2),
           Text(
-            statusLabel,
+            headline,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
@@ -917,7 +919,26 @@ class _FriendCard extends StatelessWidget {
               fontWeight: isWatching ? FontWeight.w600 : FontWeight.normal,
             ),
           ),
-          
+          if (isWatching && (watchingTitle != null || watchingSince != null)) ...[
+            const SizedBox(height: 2),
+            if (watchingTitle != null)
+              Text(
+                watchingTitle,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white.withOpacity(0.75), fontSize: 9, height: 1.15),
+              ),
+            if (watchingSince != null)
+              Text(
+                watchingSince,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white.withOpacity(0.45), fontSize: 8),
+              ),
+          ],
+
           const Spacer(), // Empurra os botões para o final do card
           
           if (!isPending) ...[

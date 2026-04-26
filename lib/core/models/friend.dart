@@ -11,6 +11,7 @@ class Friend {
     this.isFavorite = false,
     this.playingGame,
     this.playingContent,
+    this.playingStartedAt,
     this.position = 0,
     required this.createdAt,
     this.peerUserId,
@@ -24,6 +25,8 @@ class Friend {
   final bool isFavorite;
   final String? playingGame;
   final String? playingContent;
+  /// Início da reprodução atual no servidor (evita usar `updated_at`, que o heartbeat altera).
+  final DateTime? playingStartedAt;
   final int position;
   final DateTime createdAt;
   /// User ID do outro usuário (amigo ou quem enviou o pedido). Usado para ver perfil e chat.
@@ -49,6 +52,7 @@ class Friend {
           : ((map['is_favorite'] as int?) == 1),
       playingGame: map['playing_game'] as String?,
       playingContent: map['playing_content'] as String?,
+      playingStartedAt: map['playing_started_at'] != null ? Friend.parseDateTime(map['playing_started_at']) : null,
       position: map['position'] as int? ?? 0,
       createdAt: Friend.parseDateTime(map['created_at']),
       peerUserId: map['peer_user_id'] as String? ?? map['from_user_id'] as String? ?? map['friend_user_id'] as String?,
@@ -72,6 +76,7 @@ class Friend {
       'is_favorite': isFavorite ? 1 : 0,
       'playing_game': playingGame,
       'playing_content': playingContent,
+      'playing_started_at': playingStartedAt?.toUtc().toIso8601String(),
       'position': position,
       'created_at': createdAt.millisecondsSinceEpoch,
     };
@@ -86,6 +91,7 @@ class Friend {
     bool? isFavorite,
     String? playingGame,
     String? playingContent,
+    DateTime? playingStartedAt,
     int? position,
     DateTime? createdAt,
     String? peerUserId,
@@ -99,6 +105,7 @@ class Friend {
       isFavorite: isFavorite ?? this.isFavorite,
       playingGame: playingGame ?? this.playingGame,
       playingContent: playingContent ?? this.playingContent,
+      playingStartedAt: playingStartedAt ?? this.playingStartedAt,
       position: position ?? this.position,
       createdAt: createdAt ?? this.createdAt,
       peerUserId: peerUserId ?? this.peerUserId,

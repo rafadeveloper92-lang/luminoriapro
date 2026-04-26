@@ -370,18 +370,13 @@ class FriendsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Texto do status. Só mostra "Online" quando isOnline(f) é true (evita "Online" sem bolinha).
-  /// "Assistindo" só aparece se isWatching(f) for true (evita mostrar assistindo quando status está desatualizado).
-  String getStatusLabel(Friend f) {
-    if (isWatching(f)) {
-      return 'Assistindo: ${f.playingContent}';
-    }
-    // Reservado para quando user_status tiver playing_game (ex.: jogos integrados)
+  /// Primeira linha do estado (Online / Assistindo / …).
+  String getStatusHeadline(Friend f) {
+    if (isWatching(f)) return 'Assistindo';
     if (f.status == FriendStatus.playing && f.playingGame != null && f.playingGame!.isNotEmpty) {
-      return 'Jogando: ${f.playingGame}';
+      return 'Jogando';
     }
     if (f.status == FriendStatus.busy) return 'Ocupado';
-    // Só "Online" se realmente considerado online (lastSeenAt recente ou null)
     if (isOnline(f)) return 'Online';
     if (f.lastSeenAt != null) {
       final diff = DateTime.now().difference(f.lastSeenAt!);
@@ -389,6 +384,38 @@ class FriendsProvider extends ChangeNotifier {
       if (diff.inHours < 24) return 'Visto há ${diff.inHours}h';
     }
     return 'Offline';
+  }
+
+  /// Título do que está a ver (filme/série/canal).
+  String? getWatchingTitle(Friend f) {
+    if (!isWatching(f)) return null;
+    final t = f.playingContent?.trim();
+    return (t == null || t.isEmpty) ? null : t;
+  }
+
+  /// Há quanto tempo está nesta reprodução (usa `playing_started_at` quando existir).
+  String? getWatchingSinceLabel(Friend f) {
+    if (!isWatching(f)) return null;
+    final start = f.playingStartedAt ?? f.lastSeenAt;
+    if (start == null) return null;
+    final diff = DateTime.now().difference(start);
+    if (diff.inSeconds < 60) return 'Há ${diff.inSeconds}s';
+    if (diff.inMinutes < 60) return 'Há ${diff.inMinutes} min';
+    if (diff.inHours < 24) return 'Há ${diff.inHours} h';
+    return 'Há ${diff.inDays} d';
+  }
+
+  /// Uma linha (ex.: tooltips / compat).
+  String getStatusLabel(Friend f) {
+    if (isWatching(f)) {
+      final title = getWatchingTitle(f) ?? '…';
+      final since = getWatchingSinceLabel(f);
+      return since != null ? 'Assistindo: $title · $since' : 'Assistindo: $title';
+    }
+    if (f.status == FriendStatus.playing && f.playingGame != null && f.playingGame!.isNotEmpty) {
+      return 'Jogando: ${f.playingGame}';
+    }
+    return getStatusHeadline(f);
   }
 
   /// Online no app (navegando ou assistindo). Considera lastSeenAt nos últimos 5 min.
@@ -403,12 +430,11 @@ class FriendsProvider extends ChangeNotifier {
     return false;
   }
 
-  /// Verdadeiro quando está assistindo filme/série/TV (playing_content preenchido e atualizado recentemente).
-  /// Se lastSeenAt for > 2 min, considera desatualizado (app fechou sem limpar) e não mostra bolinha laranja.
+  /// Assistindo: `playing_content` preenchido e presença recente (`updated_at` ≤ 5 min).
   bool isWatching(Friend f) {
-    if (f.playingContent == null || f.playingContent!.isEmpty) return false;
+    if (f.playingContent == null || f.playingContent!.trim().isEmpty) return false;
     if (f.lastSeenAt == null) return true;
-    return DateTime.now().difference(f.lastSeenAt!).inMinutes < 2;
+    return DateTime.now().difference(f.lastSeenAt!).inMinutes < 5;
   }
 
   /// No app mas não assistindo (navegando, catálogos). Só esses mostram bolinha verde.

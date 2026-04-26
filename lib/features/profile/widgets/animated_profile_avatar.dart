@@ -5,6 +5,9 @@ import 'package:flutter/material.dart';
 
 import '../border_definitions.dart' show getBorderDefinition, kDefaultBorder;
 
+/// Onde colocar o `overlay` (ex.: badge de nível) em relação ao círculo do avatar.
+enum ProfileAvatarOverlayCorner { bottomRight, topRight }
+
 /// Avatar de perfil com borda opcional (estática ou animada). Centro = foto ou placeholder; borda = gradiente.
 class AnimatedProfileAvatar extends StatefulWidget {
   final String? avatarUrl;
@@ -12,6 +15,7 @@ class AnimatedProfileAvatar extends StatefulWidget {
   final double size;
   final String? borderKey;
   final Widget? overlay;
+  final ProfileAvatarOverlayCorner overlayCorner;
 
   const AnimatedProfileAvatar({
     super.key,
@@ -20,6 +24,7 @@ class AnimatedProfileAvatar extends StatefulWidget {
     this.size = 48,
     this.borderKey,
     this.overlay,
+    this.overlayCorner = ProfileAvatarOverlayCorner.bottomRight,
   });
 
   @override
@@ -73,11 +78,7 @@ class _AnimatedProfileAvatarState extends State<AnimatedProfileAvatar>
               child: _buildCenterContent(radius),
             ),
             if (widget.overlay != null)
-              Positioned(
-                right: -4,
-                bottom: -4,
-                child: widget.overlay!,
-              ),
+              _overlayPositioned(widget.overlay!, radius),
           ],
         ),
       );
@@ -172,15 +173,20 @@ class _AnimatedProfileAvatarState extends State<AnimatedProfileAvatar>
               child: _buildCenterContent(radius),
             ),
           ),
-          if (widget.overlay != null)
-            Positioned(
-              right: -4,
-              bottom: -4,
-              child: widget.overlay!,
-            ),
+          if (widget.overlay != null) _overlayPositioned(widget.overlay!, radius),
         ],
       ),
     );
+  }
+
+  Widget _overlayPositioned(Widget child, double radius) {
+    const o = -2.0;
+    switch (widget.overlayCorner) {
+      case ProfileAvatarOverlayCorner.topRight:
+        return Positioned(top: o, right: o, child: child);
+      case ProfileAvatarOverlayCorner.bottomRight:
+        return Positioned(right: o, bottom: o, child: child);
+    }
   }
 
   Widget _buildCenterContent(double radius) {

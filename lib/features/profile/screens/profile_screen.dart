@@ -17,6 +17,7 @@ import '../providers/profile_provider.dart';
 import '../providers/theme_provider.dart';
 import '../widgets/rank_badge_widget.dart';
 import '../widgets/animated_profile_avatar.dart';
+import '../widgets/profile_level_badge.dart';
 import '../widgets/theme_decorations.dart';
 import '../../../core/services/theme_service.dart';
 
@@ -282,6 +283,11 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
           final xpNeededForNext = nextRank != null ? nextRank.xpRequired - currentRank.xpRequired : 1;
           final levelProgress = xpNeededForNext > 0 ? (xpInCurrentLevel / xpNeededForNext).clamp(0.0, 1.0) : 1.0;
           final levelLabel = rankLabelForXp(xp);
+          final numericLevel = levelFromXp(xp);
+          final xpBarLabel = nextRank != null
+              ? '${xpInCurrentLevel.clamp(0, xpNeededForNext)} / $xpNeededForNext XP'
+              : '$xp XP';
+          const rankCyan = Color(0xFF00D4E8);
           final equippedBorderKey = displayProfile?.equippedBorderKey ?? (isMe ? myProfileProv.equippedBorderKey : null);
 
           // Obter tema (próprio ou do amigo já carregado em _initProfile) para capa e decoração
@@ -338,11 +344,8 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
                           displayName: displayName,
                           size: 48,
                           borderKey: equippedBorderKey,
-                          overlay: RankBadgeWidget(
-                            rank: currentRank,
-                            size: 36,
-                            showLevel: true,
-                          ),
+                          overlayCorner: ProfileAvatarOverlayCorner.topRight,
+                          overlay: ProfileLevelBadge(level: numericLevel, diameter: 40),
                         ),
                       ),
                       ),
@@ -363,7 +366,79 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
                   ),
                 ),
               ),
-              const SliverToBoxAdapter(child: SizedBox(height: 8)),
+              const SliverToBoxAdapter(child: SizedBox(height: 14)),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 28),
+                  child: InkWell(
+                    onTap: () => _showXpRanksModal(context, xp),
+                    borderRadius: BorderRadius.circular(14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          'RANK',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.45),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1C1C22),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.white.withOpacity(0.06)),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.shield_rounded, color: rankCyan.withOpacity(0.9), size: 22),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  levelLabel,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.6,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(999),
+                          child: LinearProgressIndicator(
+                            value: levelProgress.clamp(0.0, 1.0),
+                            minHeight: 5,
+                            backgroundColor: const Color(0xFF2A2A32),
+                            valueColor: const AlwaysStoppedAnimation<Color>(rankCyan),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          xpBarLabel,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.55),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SliverToBoxAdapter(child: SizedBox(height: 12)),
               if (bio.isNotEmpty)
                 SliverToBoxAdapter(
                   child: Center(
@@ -434,36 +509,6 @@ class _ProfileScreenState extends State<ProfileScreen> with RouteAware {
                 ),
                 const SliverToBoxAdapter(child: SizedBox(height: 10)),
               ],
-              SliverToBoxAdapter(
-                child: Center(
-                  child: InkWell(
-                    onTap: () => _showXpRanksModal(context, xp),
-                    borderRadius: BorderRadius.circular(20),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade800,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.eco_rounded, color: Colors.green.shade300, size: 18),
-                          const SizedBox(width: 6),
-                          Text(
-                            levelLabel,
-                            style: TextStyle(
-                              color: Colors.grey.shade300,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
               if (favoriteGenres.isNotEmpty) ...[
                 const SliverToBoxAdapter(child: SizedBox(height: 12)),
                 SliverToBoxAdapter(

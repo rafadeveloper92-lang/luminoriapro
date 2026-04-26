@@ -1,27 +1,27 @@
 {
-  "version": "1.4.59",
-  "build": 179,
+  "version": "1.4.60",
+  "build": 180,
   "releaseDate": "2026-04-26",
   "assets": {
-    "windows": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.59/flutteriptv-Windows-x64-Setup.exe",
+    "windows": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.60/flutteriptv-Windows-x64-Setup.exe",
     "android_mobile": {
-      "arm64-v8a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.59/flutteriptv-Android-arm64.apk",
-      "armeabi-v7a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.59/flutteriptv-Android-arm64.apk",
-      "x86_64": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.59/flutteriptv-Android-arm64.apk"
+      "arm64-v8a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.60/flutteriptv-Android-arm64.apk",
+      "armeabi-v7a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.60/flutteriptv-Android-arm64.apk",
+      "x86_64": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.60/flutteriptv-Android-arm64.apk"
     },
     "android_tv": {
-      "arm64-v8a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.59/flutteriptv-Android-arm64.apk",
-      "armeabi-v7a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.59/flutteriptv-Android-arm64.apk",
-      "x86_64": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.59/flutteriptv-Android-arm64.apk"
+      "arm64-v8a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.60/flutteriptv-Android-arm64.apk",
+      "armeabi-v7a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.60/flutteriptv-Android-arm64.apk",
+      "x86_64": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.60/flutteriptv-Android-arm64.apk"
     },
     "ios": {
-      "universal": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.59/flutteriptv-iOS-unsigned.ipa"
+      "universal": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.60/flutteriptv-iOS-unsigned.ipa"
     }
   },
   "changelog": {
-    "pt": "Android telefone: Picture-in-Picture (ícone PiP no player) para minimizar e usar outras apps\nCorreção: cadeado do player sem tela preta (overlay)\nWindows: PiP mini-janela como antes",
-    "en": "Android phone: system PiP from player toolbar; lock overlay black screen fix\nWindows PiP unchanged",
-    "zh": "Android 手机画中画；修复锁定黑屏"
+    "pt": "Android: PiP entra automaticamente ao minimizar/sair da app (vídeo a tocar); botão PiP manual mantido\nCorreção cadeado / Windows PiP como antes",
+    "en": "Android: auto PiP when leaving app while playing; manual PiP button kept\nLock overlay fix; Windows unchanged",
+    "zh": "Android 离开应用自动画中画；锁定修复"
   },
   "minVersion": "1.0.0"
 }

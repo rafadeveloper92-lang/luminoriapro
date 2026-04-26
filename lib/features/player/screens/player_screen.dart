@@ -107,6 +107,9 @@ class _PlayerScreenState extends State<PlayerScreen>
   // Travar controles (cadeado): quando true, toques não mostram controles; só botão desbloquear visível
   bool _controlsLocked = false;
 
+  /// Evita chamadas duplicadas a enterPiP entre `inactive` e `paused`.
+  DateTime? _lastAndroidPipAutoAttempt;
+
   // Ranking global: reportar tempo a cada 2 min durante reprodução e o resto no dispose
   Timer? _watchSessionReportTimer;
   int _lastReportedSessionMinutes = 0;
@@ -245,6 +248,28 @@ class _PlayerScreenState extends State<PlayerScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
     ServiceLocator.log.d('PlayerScreen: AppLifecycleState changed to $state');
+    // Android telefone: ao minimizar / mudar de app, entra em PiP automaticamente (vídeo a tocar, player Flutter).
+    if (state == AppLifecycleState.inactive || state == AppLifecycleState.paused) {
+      unawaited(_tryEnterAndroidPipOnBackground());
+    }
+  }
+
+  /// PiP automático ao sair da app (Home, recentes, outra app) — só Android móvel + media_kit em reprodução.
+  Future<void> _tryEnterAndroidPipOnBackground() async {
+    if (!PlatformDetector.isMobile || PlatformDetector.isTV) return;
+    if (_licenseBlocked || _isMultiScreenMode() || _usingNativePlayer) return;
+    final prov = _playerProvider;
+    if (prov == null || !prov.isPlaying) return;
+
+    final now = DateTime.now();
+    if (_lastAndroidPipAutoAttempt != null &&
+        now.difference(_lastAndroidPipAutoAttempt!) < const Duration(milliseconds: 900)) {
+      return;
+    }
+    _lastAndroidPipAutoAttempt = now;
+
+    if (!await AndroidPipChannel.isSupported()) return;
+    await AndroidPipChannel.enterPiP();
   }
 
   Future<void> _checkAndLaunchPlayer() async {

@@ -291,6 +291,25 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
 
         ServiceLocator.log.d('HomeScreen: Fetching TMDB & Xtream Content...', tag: 'HomeScreen');
         const preferredSections = <MapEntry<String, String>>[
+          // Listas estilo "FILMES | NETFLIX" / "RECENTEMENTE ADICIONADO" (comum em painéis Xtream)
+          MapEntry('recentement', 'Recentemente adicionados'),
+          MapEntry('adicionado', 'Recentemente adicionados'),
+          MapEntry('recém adicion', 'Recentemente adicionados'),
+          MapEntry('4k', '4K'),
+          MapEntry('uhd', '4K'),
+          MapEntry('netflix', 'Netflix'),
+          MapEntry('prime video', 'Prime Video'),
+          MapEntry('amazon prime', 'Prime Video'),
+          MapEntry('globoplay', 'Globoplay'),
+          MapEntry('hbo max', 'HBO Max'),
+          MapEntry('hbo ', 'HBO Max'),
+          MapEntry('disney', 'Disney+'),
+          MapEntry('apple tv', 'Apple TV+'),
+          MapEntry('paramount', 'Paramount+'),
+          MapEntry('star+', 'Star+'),
+          MapEntry('star plus', 'Star+'),
+          MapEntry('claro video', 'Claro video'),
+          MapEntry('crunchyroll', 'Crunchyroll'),
           MapEntry('lançament', 'Lançamentos'),
           MapEntry('lancament', 'Lançamentos'),
           MapEntry('lanc', 'Lançamentos'),
@@ -328,12 +347,24 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
           MapEntry('western', 'Western'),
         ];
 
+        String _cleanFilmesPipeTitle(String raw) {
+          final t = raw.trim();
+          final lower = t.toLowerCase();
+          if (lower.startsWith('filmes')) {
+            final parts = t.split('|');
+            if (parts.length >= 2) {
+              return parts.sublist(1).join('|').trim();
+            }
+          }
+          return raw;
+        }
+
         String displayNameForCategory(XtreamCategory cat) {
           final n = cat.categoryName.toLowerCase();
           for (final e in preferredSections) {
             if (n.contains(e.key)) return e.value;
           }
-          return cat.categoryName;
+          return _cleanFilmesPipeTitle(cat.categoryName);
         }
 
         final seenCatIds = <String>{};
@@ -349,6 +380,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
         // 1) Categoria que parece "lançamentos" (prioridade para conteúdo recente)
         XtreamCategory? releasePick;
         const releaseHints = [
+          'recentement', 'adicionado', 'recém adicion', 'recém-adicion',
           'lançamento', 'lancamento', 'lancamentos', 'estreia', 'estreias',
           'novidade', 'novidades', 'recém', 'recem', 'recent', 'novos',
           '2027', '2026', '2025', '2024', '2023',
@@ -364,7 +396,33 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
         }
         addCategory(releasePick);
 
-        // 2) Uma categoria por ano (2027→2022) — mesmo que o nome seja "FILMES | 2025"
+        // 2) Plataformas / qualidade (uma categoria por palavra — ordem do outro app)
+        const platformHints = [
+          '4k',
+          'uhd',
+          'netflix',
+          'prime video',
+          'amazon prime',
+          'globoplay',
+          'hbo max',
+          'disney',
+          'apple tv',
+          'paramount',
+          'star+',
+          'star plus',
+        ];
+        for (final hint in platformHints) {
+          XtreamCategory? pick;
+          for (final c in categories) {
+            if (c.categoryName.toLowerCase().contains(hint)) {
+              pick = c;
+              break;
+            }
+          }
+          addCategory(pick);
+        }
+
+        // 3) Uma categoria por ano (2027→2022) — mesmo que o nome seja "FILMES | 2025"
         for (final year in ['2027', '2026', '2025', '2024', '2023', '2022']) {
           XtreamCategory? pick;
           for (final c in categories) {
@@ -376,20 +434,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
           addCategory(pick);
         }
 
-        // 3) Outras categorias por palavra-chave (nome amigável)
+        // 4) Outras categorias por palavra-chave (nome amigável)
         for (final entry in preferredSections) {
           final found = categories.where((c) => c.categoryName.toLowerCase().contains(entry.key)).toList();
           if (found.isNotEmpty) addCategory(found.first);
         }
 
-        // 4) Primeiras categorias da lista do servidor (ordem do painel)
+        // 5) Primeiras categorias da lista do servidor (ordem do painel)
         for (final c in categories.take(6)) {
           addCategory(c);
         }
 
-        // 5) Completar até ~18 categorias sem duplicar
+        // 6) Completar até ~24 categorias sem duplicar
         for (final c in categories) {
-          if (catsToLoad.length >= 18) break;
+          if (catsToLoad.length >= 24) break;
           addCategory(c);
         }
 
@@ -760,6 +818,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
   }
 
   static const _categoryOrder = [
+    'Recentemente adicionados',
+    '4K',
+    'Netflix',
+    'Prime Video',
+    'Globoplay',
+    'HBO Max',
+    'Disney+',
+    'Apple TV+',
+    'Paramount+',
+    'Star+',
+    'Claro video',
+    'Crunchyroll',
     'Lançamentos',
     'Estreias',
     'Novidades',

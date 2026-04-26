@@ -1,27 +1,27 @@
 {
-  "version": "1.4.54",
-  "build": 174,
+  "version": "1.4.55",
+  "build": 175,
   "releaseDate": "2026-04-25",
   "assets": {
-    "windows": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.54/flutteriptv-Windows-x64-Setup.exe",
+    "windows": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.55/flutteriptv-Windows-x64-Setup.exe",
     "android_mobile": {
-      "arm64-v8a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.54/flutteriptv-Android-arm64.apk",
-      "armeabi-v7a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.54/flutteriptv-Android-arm64.apk",
-      "x86_64": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.54/flutteriptv-Android-arm64.apk"
+      "arm64-v8a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.55/flutteriptv-Android-arm64.apk",
+      "armeabi-v7a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.55/flutteriptv-Android-arm64.apk",
+      "x86_64": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.55/flutteriptv-Android-arm64.apk"
     },
     "android_tv": {
-      "arm64-v8a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.54/flutteriptv-Android-arm64.apk",
-      "armeabi-v7a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.54/flutteriptv-Android-arm64.apk",
-      "x86_64": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.54/flutteriptv-Android-arm64.apk"
+      "arm64-v8a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.55/flutteriptv-Android-arm64.apk",
+      "armeabi-v7a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.55/flutteriptv-Android-arm64.apk",
+      "x86_64": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.55/flutteriptv-Android-arm64.apk"
     },
     "ios": {
-      "universal": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.54/flutteriptv-iOS-unsigned.ipa"
+      "universal": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.55/flutteriptv-iOS-unsigned.ipa"
     }
   },
   "changelog": {
-    "pt": "Correção: build CI (tipo do seletor de canal no painel Jogos)\nNovo: Carrossel de jogos na home + admin\nCorreções: OTA, APK persistente, perfil favoritos/timeline",
-    "en": "Fix: CI build (admin Jogos channel dropdown typing)\nNew: Home sports carousel + admin tab\nFixes: OTA, persistent APK, profile favorites/timeline",
-    "zh": "修复：CI 构建（管理后台频道下拉类型）\n新增：首页赛事轮播"
+    "pt": "Home filmes: secção «Lançamentos recentes» no topo (ordenado por data Xtream)\nMais categorias VOD na home; suporte a categorias 2026\nInclui melhorias anteriores: carrossel jogos admin, OTA, perfil",
+    "en": "Movies home: Recent releases section on top (Xtream added date)\nMore VOD category rows; 2026 category support\nIncludes: sports carousel admin, OTA fixes, profile",
+    "zh": "电影首页：最新发布置顶；更多分类；支持 2026 分类名"
   },
   "minVersion": "1.0.0"
 }

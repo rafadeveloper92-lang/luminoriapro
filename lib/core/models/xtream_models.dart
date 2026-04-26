@@ -56,11 +56,12 @@ class XtreamStream {
   }
 
   /// Timestamp Unix (segundos) do campo `added` do Xtream — para ordenar lançamentos.
+  /// Evita `is num`: este modelo tem um campo [num] que ocultaria o tipo [num].
   int get addedEpochSeconds {
-    final a = added;
+    final dynamic a = added;
     if (a == null) return 0;
     if (a is int) return a;
-    if (a is num) return a.toInt();
+    if (a is double) return a.toInt();
     if (a is String) return int.tryParse(a) ?? 0;
     return 0;
   }

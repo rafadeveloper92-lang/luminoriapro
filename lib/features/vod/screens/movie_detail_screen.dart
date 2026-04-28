@@ -16,6 +16,7 @@ import '../../../core/navigation/app_router.dart';
 import '../../../core/services/service_locator.dart';
 import '../../../core/services/vod_watch_history_service.dart';
 import '../widgets/person_modal.dart';
+import '../widgets/vod_movie_reviews_section.dart';
 
 class MovieDetailScreen extends StatefulWidget {
   final XtreamStream movie;
@@ -193,6 +194,11 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
                 _buildSynopsis(),
                 const SizedBox(height: 24),
                 _buildCast(),
+                const SizedBox(height: 28),
+                VodMovieReviewsSection(
+                  streamId: widget.movie.streamId,
+                  movieName: widget.movie.name,
+                ),
                 const SizedBox(height: 32),
               ],
             ),

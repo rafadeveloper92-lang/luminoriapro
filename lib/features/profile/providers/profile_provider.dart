@@ -95,19 +95,28 @@ class ProfileProvider extends ChangeNotifier {
     }
     final xpDelta = minutes;
     final hoursDelta = minutes / 60.0;
-    final p = _profile ?? UserProfile(
-      userId: userId,
-      equippedBorderKey: kDefaultBorder.id, // Borda padrão para novos perfis
-    );
-    final updated = p.copyWith(
-      xp: p.xp + xpDelta,
-      watchHours: p.watchHours + hoursDelta,
-      updatedAt: DateTime.now(),
-    );
-    final saved = await _service.saveProfile(updated);
-    if (saved != null) {
-      _profile = saved;
+
+    // 1) Preferir RPC no Postgres: soma atómica (evita "regredir" XP/nível com upserts em corrida).
+    var server = await _service.incrementXpFromWatch(minutes);
+    if (server != null) {
+      _profile = server;
       notifyListeners();
+    } else {
+      // Fallback se a migração 35 ainda não existir no projeto
+      final p = _profile ?? UserProfile(
+        userId: userId,
+        equippedBorderKey: kDefaultBorder.id, // Borda padrão para novos perfis
+      );
+      final updated = p.copyWith(
+        xp: p.xp + xpDelta,
+        watchHours: p.watchHours + hoursDelta,
+        updatedAt: DateTime.now(),
+      );
+      final saved = await _service.saveProfile(updated);
+      if (saved != null) {
+        _profile = saved;
+        notifyListeners();
+      }
     }
     final rankOk = await _service.addMonthlyWatchMinutes(minutes);
     if (kDebugMode) {

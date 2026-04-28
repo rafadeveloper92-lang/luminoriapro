@@ -97,6 +97,31 @@ class UserProfile {
     };
   }
 
+  /// `toMap` com colunas opcionais: ao fazer `upsert`, **não** enviar chaves cujo
+  /// valor seja `null` — no PostgreSQL isso apagaria `avatar_url` / `display_name` etc.
+  Map<String, dynamic> toUpsertMap() {
+    final m = <String, dynamic>{
+      'user_id': userId,
+      'watch_hours': watchHours,
+      'xp': xp,
+      'favorite_genres': favoriteGenres,
+      'updated_at': updatedAt.toUtc().toIso8601String(),
+    };
+    if (displayName != null) m['display_name'] = displayName;
+    if (bio != null) m['bio'] = bio;
+    if (avatarUrl != null) m['avatar_url'] = avatarUrl;
+    if (coverUrl != null) m['cover_url'] = coverUrl;
+    if (maritalStatus != null) m['marital_status'] = maritalStatus;
+    if (countryCode != null) m['country_code'] = countryCode;
+    if (city != null) m['city'] = city;
+    if (equippedBorderKey != null) m['equipped_border_key'] = equippedBorderKey;
+    if (equippedThemeKey != null) m['equipped_theme_key'] = equippedThemeKey;
+    m['theme_music_enabled'] = themeMusicEnabled;
+    m['fav_channels_count'] = favChannelsCount;
+    m['fav_vod_count'] = favVodCount;
+    return m;
+  }
+
   UserProfile copyWith({
     String? userId,
     String? displayName,

@@ -204,9 +204,7 @@ class _AnimatedProfileAvatarState extends State<AnimatedProfileAvatar>
   }
 
   Widget _placeholder(double radius) {
-    final initial = widget.displayName.isNotEmpty
-        ? widget.displayName[0].toUpperCase()
-        : '?';
+    final initial = _firstInitial(widget.displayName);
     return Container(
       color: Colors.grey.shade800,
       alignment: Alignment.center,
@@ -219,5 +217,14 @@ class _AnimatedProfileAvatarState extends State<AnimatedProfileAvatar>
         ),
       ),
     );
+  }
+
+  /// Primeira letra visível do nome (suporta emojis melhor que `[0]`).
+  static String _firstInitial(String raw) {
+    final t = raw.trim();
+    if (t.isEmpty) return '?';
+    final it = t.runes.iterator;
+    if (!it.moveNext()) return '?';
+    return String.fromCharCode(it.current).toUpperCase();
   }
 }

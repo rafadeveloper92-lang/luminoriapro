@@ -95,6 +95,26 @@ class UserProfileService {
     }
   }
 
+  /// Incrementa XP e horas assistidas no servidor (evita perder progresso por corrida no cliente).
+  /// Requer migração `35_increment_xp_atomic.sql`. Em falha, retorna null (o chamador pode usar `saveProfile`).
+  Future<UserProfile?> incrementXpFromWatch(int minutes) async {
+    final client = _client;
+    if (client == null || minutes < 1) return null;
+    try {
+      final res = await client.rpc('increment_xp_from_watch', params: {'p_minutes': minutes});
+      if (res == null) return null;
+      return UserProfile.fromMap(Map<String, dynamic>.from(res as Map));
+    } catch (e, st) {
+      ServiceLocator.log.e(
+        'UserProfileService.incrementXpFromWatch: execute supabase/35_increment_xp_atomic.sql se ainda não rodou. Erro: $e',
+        tag: 'Profile',
+        error: e,
+        stackTrace: st,
+      );
+      return null;
+    }
+  }
+
   /// Adiciona moedas ao usuário logado por minutos assistidos em filme/série (1 moeda por minuto).
   /// Requer: Supabase configurado, usuário logado, migração 23_add_coins_from_watch.sql executada.
   Future<bool> addCoinsFromWatch(int minutes) async {
@@ -182,8 +202,8 @@ class UserProfileService {
       return null;
     }
     try {
-      final data = profile.toMap();
-      data['user_id'] = profile.userId;
+      // upsert com map completo enviava null em avatar_url/display_name e podia apagar dados no Postgres.
+      final data = profile.toUpsertMap();
       final res = await client.from(_table).upsert(data, onConflict: 'user_id').select().single();
       return UserProfile.fromMap(Map<String, dynamic>.from(res));
     } catch (e, st) {

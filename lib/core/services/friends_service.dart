@@ -28,6 +28,18 @@ class FriendsService {
   static const String _tableUserStatus = 'user_status';
   static const String _tableProfiles = 'user_profiles';
 
+  /// Nome para lista quando `display_name` está vazio ou a linha em `user_profiles` não existe (RLS/outro).
+  static String displayNameForPeer(Map<String, dynamic>? profileRow, String peerUserId) {
+    final raw = profileRow?['display_name'] as String?;
+    final t = raw?.trim();
+    if (t != null && t.isNotEmpty) return t;
+    if (peerUserId.isNotEmpty) {
+      final short = peerUserId.length >= 8 ? peerUserId.substring(0, 8) : peerUserId;
+      return 'Utilizador $short';
+    }
+    return 'Utilizador';
+  }
+
   /// Carrega todos os amigos (dados do Supabase).
   Future<List<Friend>> getAllFriends() async {
     final client = _client;
@@ -83,7 +95,7 @@ class FriendsService {
         final lastSeenAt = s?['updated_at'] != null ? Friend.parseDateTime(s!['updated_at']) : null;
         list.add(Friend(
           id: m['id']?.toString() ?? '',
-          displayName: p?['display_name'] as String? ?? '',
+          displayName: displayNameForPeer(p, friendUserId),
           avatarUrl: p?['avatar_url'] as String?,
           status: status,
           lastSeenAt: lastSeenAt,

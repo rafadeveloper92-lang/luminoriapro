@@ -41,6 +41,8 @@ dependencies:
   version: ^3.0.2
   package_info_plus: ^4.2.0
   url_launcher: ^6.2.2
+  share_plus: ^10.1.4
+  app_links: ^6.3.3
   
   # UI Components
   cached_network_image: ^3.3.0

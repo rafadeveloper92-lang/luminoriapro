@@ -7,7 +7,7 @@ import '../../../core/services/tmdb_service.dart';
 import '../../channels/providers/channel_provider.dart';
 import '../../favorites/providers/favorites_provider.dart';
 import '../../playlist/providers/playlist_provider.dart';
-import '../../../core/navigation/app_router.dart';
+import '../../../core/services/share_movie_service.dart';
 import '../widgets/person_modal.dart';
 
 class SeriesDetailScreen extends StatefulWidget {
@@ -331,6 +331,17 @@ class _SeriesDetailScreenState extends State<SeriesDetailScreen> {
           ),
         ),
         const SizedBox(width: 12),
+        IconButton.filled(
+          onPressed: () => ShareMovieService.instance.shareMovie(
+            movie: widget.series,
+            contentType: 'series',
+            trailerYoutubeKey: null,
+          ),
+          icon: const Icon(Icons.share_rounded),
+          style: IconButton.styleFrom(backgroundColor: Colors.white24),
+          color: Colors.white,
+        ),
+        const SizedBox(width: 8),
         Consumer2<FavoritesProvider, PlaylistProvider>(
           builder: (context, fav, playlistProv, _) {
             final isFav = fav.isVodFavorite(widget.series.streamId);

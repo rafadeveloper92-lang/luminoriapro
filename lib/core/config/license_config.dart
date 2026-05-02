@@ -37,6 +37,19 @@ abstract final class EnvConfig {
       supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty;
 
   static bool get isTmdbConfigured => tmdbApiKey.isNotEmpty;
+
+  /// Segredo opcional para validar links na landing web (mesmo valor no servidor).
+  static String get shareLinkSecret => _fromEnv('SHARE_LINK_SECRET');
+
+  /// URL base de uma página web que abre no browser (partilha WhatsApp). Ex.: https://teudominio.com
+  /// Opcional: se vazio, a partilha usa só o link profundo luminora:// (só abre com a app instalada).
+  static String get shareWebBaseUrl => _fromEnv('SHARE_WEB_BASE_URL');
+
+  /// Link para Play Store (fallback quando o destinatário não tem a app). Opcional.
+  static String get androidStoreUrl =>
+      _fromEnv('ANDROID_STORE_URL').isNotEmpty
+          ? _fromEnv('ANDROID_STORE_URL')
+          : 'https://play.google.com/store/apps/details?id=com.flutteriptv.flutter_iptv';
 }
 
 /// Compatibilidade com código que ainda usa LicenseConfig.
@@ -45,4 +58,7 @@ abstract final class LicenseConfig {
   static String get supabaseUrl => EnvConfig.supabaseUrl;
   static String get supabaseAnonKey => EnvConfig.supabaseAnonKey;
   static bool get isConfigured => EnvConfig.isSupabaseConfigured;
+  static String get shareWebBaseUrl => EnvConfig.shareWebBaseUrl;
+  static String get androidStoreUrl => EnvConfig.androidStoreUrl;
+  static String get shareLinkSecret => EnvConfig.shareLinkSecret;
 }

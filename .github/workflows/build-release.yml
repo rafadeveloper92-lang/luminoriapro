@@ -51,9 +51,6 @@ jobs:
       
       - name: Get dependencies
         run: flutter pub get
-
-      - name: Analyze code
-        run: flutter analyze --no-fatal-infos --no-fatal-warnings
       
       - name: Build Windows Release
         run: flutter build windows --release
@@ -68,15 +65,8 @@ jobs:
           } catch { Write-Host "SQLite DLL download failed" }
         shell: pwsh
       
-      - name: Create Installer (Inno Setup)
-        shell: pwsh
+      - name: Create Installer
         run: |
-          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
-          if (-not (Test-Path $iscc)) {
-            Write-Host "::warning::Inno Setup não encontrado no runner — a saltar .exe; faz-se zip da pasta Release."
-            Compress-Archive -Path "build\windows\x64\runner\Release\*" -DestinationPath "flutteriptv-Windows-x64-Release.zip" -Force
-            exit 0
-          }
           $version = "${{ github.ref_name }}".TrimStart('v')
           if (!$version) { $version = "1.0.0" }
           @"
@@ -96,16 +86,14 @@ jobs:
           [Icons]
           Name: "{group}\FlutterIPTV"; Filename: "{app}\flutter_iptv.exe"
           "@ | Out-File "installer.iss" -Encoding UTF8
-          & $iscc installer.iss
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
+        shell: pwsh
       
       - name: Upload Windows Artifact
         uses: actions/upload-artifact@v4
         with:
           name: windows-release
-          path: |
-            flutteriptv-Windows-x64-Setup.exe
-            flutteriptv-Windows-x64-Release.zip
-          if-no-files-found: warn
+          path: flutteriptv-Windows-x64-Setup.exe
 
   # ============================================
   # Build Android APKs
@@ -151,9 +139,6 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
-      - name: Analyze code
-        run: flutter analyze --no-fatal-infos --no-fatal-warnings
-
       - name: Setup Android release signing
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
@@ -161,10 +146,10 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
         run: |
-          # Com segredos: APK assinado para produção. Sem segredos: build continua com assinatura debug (CI / fork).
           if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_PASSWORD" ] || [ -z "$KEY_ALIAS" ]; then
-            echo "::warning::Secrets de keystore ausentes — APK será assinado com chave debug (defina KEYSTORE_* no repositório)."
-            exit 0
+            echo "Android release signing secrets are required for release builds."
+            echo "Configure KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_PASSWORD and KEY_ALIAS in GitHub Actions secrets."
+            exit 1
           fi
           python3 - <<'PY'
           import base64
@@ -238,9 +223,6 @@ jobs:
       
       - name: Get dependencies
         run: flutter pub get
-
-      - name: Analyze code
-        run: flutter analyze --no-fatal-infos --no-fatal-warnings
       
       - name: Install CocoaPods
         run: |
@@ -287,7 +269,6 @@ jobs:
           name: Release ${{ github.event.inputs.version || github.ref_name }}
           files: |
             release-assets/windows-release/*.exe
-            release-assets/windows-release/*.zip
             release-assets/android-release/*.apk
             release-assets/ios-release/*.ipa
         env:

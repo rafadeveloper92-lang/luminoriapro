@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/navigation/app_router.dart';
 import '../../../core/navigation/pending_share_link.dart';
 import '../../../core/navigation/movie_link_handler.dart';
 import '../../../core/widgets/tv_sidebar.dart';

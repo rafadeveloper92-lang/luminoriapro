@@ -119,7 +119,19 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
       movie: widget.movie,
       contentType: 'movie',
       trailerYoutubeKey: trailerKey,
+      posterImageUrl: _posterUrlForShare(),
     );
+  }
+
+  /// Capa para anexo no WhatsApp: TMDB (melhor) ou ícone da lista Xtream.
+  String? _posterUrlForShare() {
+    final path = _tmdbDetails?['poster_path'];
+    if (path != null && path.toString().trim().isNotEmpty) {
+      return '${_tmdbService.imageBaseUrl}${path.toString()}';
+    }
+    final icon = widget.movie.streamIcon;
+    if (icon != null && icon.trim().isNotEmpty) return icon;
+    return null;
   }
 
   void _playMovie() {

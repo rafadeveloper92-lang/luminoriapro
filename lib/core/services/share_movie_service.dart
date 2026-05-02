@@ -1,17 +1,23 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:crypto/crypto.dart';
+import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../config/license_config.dart';
 import '../models/xtream_models.dart';
+import 'service_locator.dart';
 
-/// Partilha de filme (WhatsApp, etc.): link profundo + opcional página web e trailer YouTube.
+/// Partilha de filme (WhatsApp, etc.): imagem do poster + link profundo + opcional página web e trailer YouTube.
 class ShareMovieService {
   ShareMovieService._();
   static final ShareMovieService instance = ShareMovieService._();
 
   static const String _scheme = 'luminora';
+  final Dio _dio = Dio();
 
   /// Gera URI interna (abre a app diretamente no filme).
   Uri buildAppUri({
@@ -61,11 +67,34 @@ class ShareMovieService {
     return Uri.parse('$root/movie').replace(queryParameters: q);
   }
 
-  /// Texto + ficheiros para o sistema de partilha.
+  /// Descarrega poster (TMDB ou URL da lista) para ficheiro temporário — WhatsApp mostra a imagem como anexo.
+  Future<File?> _downloadPosterToTemp(String imageUrl, String safeName) async {
+    final u = imageUrl.trim();
+    if (u.isEmpty || !u.toLowerCase().startsWith('http')) return null;
+    try {
+      final dir = await getTemporaryDirectory();
+      var slug = safeName
+          .replaceAll(RegExp(r'[^\w\-\s]'), '')
+          .replaceAll(RegExp(r'\s+'), '_');
+      if (slug.isEmpty) slug = 'poster';
+      if (slug.length > 40) slug = slug.substring(0, 40);
+      final path = '${dir.path}/luminora_share_${slug}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      await _dio.download(u, path);
+      final f = File(path);
+      if (await f.exists() && await f.length() > 512) return f;
+    } catch (e) {
+      ServiceLocator.log.d('ShareMovieService: poster download failed: $e', tag: 'Share');
+    }
+    return null;
+  }
+
+  /// Texto + imagem (se [posterImageUrl] for HTTPS) para o sistema de partilha.
   Future<void> shareMovie({
     required XtreamStream movie,
     required String contentType,
     String? trailerYoutubeKey,
+    /// URL HTTPS da capa (ex.: TMDB w500 + poster_path ou stream_icon da lista).
+    String? posterImageUrl,
     Rect? sharePositionOrigin,
   }) async {
     final appUri = buildAppUri(
@@ -103,10 +132,30 @@ class ShareMovieService {
 
     final text = lines.join('\n');
 
-    await Share.share(
-      text,
-      subject: movie.name,
-      sharePositionOrigin: sharePositionOrigin,
-    );
+    File? posterFile;
+    if (posterImageUrl != null && posterImageUrl.isNotEmpty) {
+      posterFile = await _downloadPosterToTemp(posterImageUrl, movie.name);
+    }
+
+    if (posterFile != null) {
+      await Share.shareXFiles(
+        [
+          XFile(
+            posterFile.path,
+            mimeType: 'image/jpeg',
+            name: '${movie.name}.jpg',
+          ),
+        ],
+        text: text,
+        subject: movie.name,
+        sharePositionOrigin: sharePositionOrigin,
+      );
+    } else {
+      await Share.share(
+        text,
+        subject: movie.name,
+        sharePositionOrigin: sharePositionOrigin,
+      );
+    }
   }
 }

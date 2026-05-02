@@ -15,17 +15,24 @@ import '../../profile/providers/profile_provider.dart';
 import '../../../core/navigation/app_router.dart';
 import '../../../core/services/service_locator.dart';
 import '../../../core/services/vod_watch_history_service.dart';
+import '../../../core/services/share_movie_service.dart';
 import '../widgets/person_modal.dart';
 import '../widgets/vod_movie_reviews_section.dart';
 
 class MovieDetailScreen extends StatefulWidget {
   final XtreamStream movie;
   final Map<String, dynamic>? tmdbData;
+  /// Abre o trailer do YouTube sem esperar só pelo TMDB (ex.: partilha com chave no link).
+  final String? initialTrailerYoutubeKey;
+  /// Se true, inicia reprodução do filme após carregar detalhes (link profundo com play=1).
+  final bool openPlayerOnLoad;
 
   const MovieDetailScreen({
     super.key, 
     required this.movie,
     this.tmdbData,
+    this.initialTrailerYoutubeKey,
+    this.openPlayerOnLoad = false,
   });
 
   @override
@@ -78,7 +85,54 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
     }
     if (mounted) {
       setState(() => _isLoading = false);
+      if (widget.openPlayerOnLoad) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _playMovie();
+        });
+      }
     }
+  }
+
+  Future<void> _shareToWhatsApp() async {
+    String? trailerKey = widget.initialTrailerYoutubeKey;
+    if (trailerKey == null || trailerKey.isEmpty) {
+      trailerKey = widget.tmdbData?['trailer_youtube_key'] as String?;
+    }
+    if (trailerKey == null || trailerKey.isEmpty) {
+      final vids = _tmdbDetails?['videos'] as Map<String, dynamic>?;
+      final results = vids?['results'] as List?;
+      if (results != null) {
+        for (final raw in results) {
+          final v = raw as Map<String, dynamic>;
+          final type = (v['type'] as String?)?.toLowerCase();
+          final site = (v['site'] as String?)?.toLowerCase();
+          if (site == 'youtube' && (type == 'trailer' || type == 'teaser')) {
+            final k = v['key'] as String?;
+            if (k != null && k.isNotEmpty) {
+              trailerKey = k;
+              break;
+            }
+          }
+        }
+      }
+    }
+    await ShareMovieService.instance.shareMovie(
+      movie: widget.movie,
+      contentType: 'movie',
+      trailerYoutubeKey: trailerKey,
+      posterImageUrl: _posterUrlForShare(),
+    );
+  }
+
+  /// Capa para anexo no WhatsApp: TMDB (melhor) ou ícone da lista Xtream.
+  String? _posterUrlForShare() {
+    final path = _tmdbDetails?['poster_path'];
+    if (path != null && path.toString().trim().isNotEmpty) {
+      return '${_tmdbService.imageBaseUrl}${path.toString()}';
+    }
+    final icon = widget.movie.streamIcon;
+    if (icon != null && icon.trim().isNotEmpty) return icon;
+    return null;
   }
 
   void _playMovie() {
@@ -370,6 +424,18 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
         ),
         const SizedBox(height: 12),
         OutlinedButton.icon(
+          onPressed: _shareToWhatsApp,
+          style: OutlinedButton.styleFrom(
+            foregroundColor: const Color(0xFFB9F6CA),
+            side: const BorderSide(color: Color(0xFF66BB6A)),
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+          ),
+          icon: const Icon(Icons.share_rounded, size: 22),
+          label: const Text('Indicar (WhatsApp…)', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+        ),
+        const SizedBox(height: 12),
+        OutlinedButton.icon(
           onPressed: _onCreateCinemaRoomTap,
           style: OutlinedButton.styleFrom(
             foregroundColor: Colors.amber,
@@ -385,6 +451,29 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
   }
 
   Widget _buildTrailer() {
+    final fromLink = widget.initialTrailerYoutubeKey ?? widget.tmdbData?['trailer_youtube_key'] as String?;
+    if (fromLink != null && fromLink.isNotEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Trailer',
+            style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: () => _playTrailerInApp(context, fromLink),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.white,
+              side: const BorderSide(color: Colors.white54),
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
+            ),
+            icon: const Icon(Icons.play_circle_outline, size: 22),
+            label: const Text('Assistir trailer'),
+          ),
+        ],
+      );
+    }
     if (_tmdbDetails == null) return const SizedBox.shrink();
     final videos = _tmdbDetails!['videos'] as Map<String, dynamic>?;
     final results = videos?['results'] as List?;

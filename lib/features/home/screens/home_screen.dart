@@ -6,7 +6,8 @@ import 'package:provider/provider.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../../core/theme/app_theme.dart';
-import '../../../core/navigation/app_router.dart';
+import '../../../core/navigation/pending_share_link.dart';
+import '../../../core/navigation/movie_link_handler.dart';
 import '../../../core/widgets/tv_sidebar.dart';
 import '../../../core/platform/platform_detector.dart';
 import '../../../core/i18n/app_strings.dart';
@@ -262,6 +263,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
       _refreshWatchHistory();
       _loadMovieData();
       _loadHomeSports();
+      _tryPendingShareLink();
     } else {
         ServiceLocator.log.d('HomeScreen: Still no playlists', tag: 'HomeScreen');
         setState(() => _isLoadingMovies = false);
@@ -286,6 +288,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
     } catch (e) {
       ServiceLocator.log.e('Sync lista IPTV admin falhou', tag: 'HomeScreen', error: e);
     }
+  }
+
+  void _tryPendingShareLink() {
+    final uri = PendingShareLink.takePending();
+    if (uri == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      MovieLinkHandler.openFromUri(context, uri);
+    });
   }
 
   Future<void> _loadMovieData() async {

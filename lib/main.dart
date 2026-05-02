@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -12,6 +13,9 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'core/theme/app_theme.dart';
 import 'core/navigation/app_router.dart';
+import 'package:app_links/app_links.dart';
+import 'core/navigation/movie_link_handler.dart';
+import 'core/navigation/pending_share_link.dart';
 import 'core/services/service_locator.dart';
 import 'core/services/auto_refresh_service.dart';
 import 'core/platform/native_player_channel.dart';
@@ -229,6 +233,7 @@ class _DlnaAwareAppState extends State<_DlnaAwareApp> with WindowListener, Widge
   bool _lastAutoRefreshState = false;
   int _lastRefreshInterval = 24;
   Timer? _presenceHeartbeat;
+  StreamSubscription<Uri>? _appLinksSub;
 
   @override
   void initState() {
@@ -246,6 +251,7 @@ class _DlnaAwareAppState extends State<_DlnaAwareApp> with WindowListener, Widge
       _initAutoRefresh();
       _applyOrientationSettings();
       _startPresenceAndRealtime();
+      _subscribeAppLinks();
     });
   }
 
@@ -283,9 +289,48 @@ class _DlnaAwareAppState extends State<_DlnaAwareApp> with WindowListener, Widge
     ServiceLocator.log.d('应用屏幕方向设置: $orientation', tag: 'Orientation');
   }
 
+  void _handleIncomingLink(Uri uri) {
+    if (uri.scheme != 'luminora' && uri.scheme != 'https' && uri.scheme != 'http') return;
+    if (uri.scheme == 'luminora' && uri.host != 'movie') return;
+    if (uri.scheme == 'https' || uri.scheme == 'http') {
+      final path = uri.path;
+      if (!path.contains('movie') && !uri.queryParameters.containsKey('stream_id')) return;
+    }
+
+    final nav = _navigatorKey.currentState;
+    if (nav == null) return;
+
+    void open() {
+      final ctx = _navigatorKey.currentContext;
+      if (ctx == null) return;
+      MovieLinkHandler.openFromUri(ctx, uri);
+    }
+
+    nav.pushNamedAndRemoveUntil(AppRouter.home, (r) => r.isFirst);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      open();
+    });
+  }
+
+  Future<void> _subscribeAppLinks() async {
+    if (kIsWeb) return;
+    try {
+      final appLinks = AppLinks();
+      final initial = await appLinks.getInitialLink();
+      if (initial != null) _handleIncomingLink(initial);
+
+      await _appLinksSub?.cancel();
+      _appLinksSub = appLinks.uriLinkStream.listen(
+        _handleIncomingLink,
+        onError: (_) {},
+      );
+    } catch (_) {}
+  }
+
   @override
   void dispose() {
-    _stopPresenceAndRealtime();
+    _appLinksSub?.cancel();
+    _appLinksSub = null;
     WidgetsBinding.instance.removeObserver(this);
     if (Platform.isWindows) {
       windowManager.removeListener(this);

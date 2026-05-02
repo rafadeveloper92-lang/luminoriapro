@@ -8,6 +8,7 @@ import '../../channels/providers/channel_provider.dart';
 import '../../favorites/providers/favorites_provider.dart';
 import '../../playlist/providers/playlist_provider.dart';
 import '../../../core/navigation/app_router.dart';
+import '../../../core/services/share_movie_service.dart';
 import '../widgets/person_modal.dart';
 
 class SeriesDetailScreen extends StatefulWidget {
@@ -104,15 +105,51 @@ class _SeriesDetailScreenState extends State<SeriesDetailScreen> {
     });
   }
 
+  Future<void> _shareSeries() async {
+    String? trailerKey;
+    final vids = _tmdbDetails?['videos'] as Map<String, dynamic>?;
+    final results = vids?['results'] as List?;
+    if (results != null) {
+      for (final raw in results) {
+        final v = raw as Map<String, dynamic>;
+        final type = (v['type'] as String?)?.toLowerCase();
+        final site = (v['site'] as String?)?.toLowerCase();
+        if (site == 'youtube' && (type == 'trailer' || type == 'teaser')) {
+          final k = v['key'] as String?;
+          if (k != null && k.isNotEmpty) {
+            trailerKey = k;
+            break;
+          }
+        }
+      }
+    }
+    await ShareMovieService.instance.shareMovie(
+      movie: widget.series,
+      contentType: 'series',
+      trailerYoutubeKey: trailerKey,
+      posterImageUrl: _posterUrlForShare(),
+    );
+  }
+
+  String? _posterUrlForShare() {
+    final path = _tmdbDetails?['poster_path'];
+    if (path != null && path.toString().trim().isNotEmpty) {
+      return '${_tmdbService.imageBaseUrl}${path.toString()}';
+    }
+    final icon = widget.series.streamIcon;
+    if (icon != null && icon.trim().isNotEmpty) return icon;
+    return null;
+  }
+
   void _playEpisode(XtreamEpisode episode) {
     final provider = context.read<ChannelProvider>();
     final service = XtreamService();
     service.configure(provider.xtreamBaseUrl!, provider.xtreamUsername!, provider.xtreamPassword!);
-    
+
     String extension = episode.containerExtension;
     if (extension.isEmpty) extension = 'mp4';
     if (extension.startsWith('.')) extension = extension.substring(1);
-    
+
     final url = service.getSeriesEpisodeUrl(episode.id, extension);
 
     Navigator.pushNamed(
@@ -331,6 +368,13 @@ class _SeriesDetailScreenState extends State<SeriesDetailScreen> {
           ),
         ),
         const SizedBox(width: 12),
+        IconButton.filled(
+          onPressed: _shareSeries,
+          icon: const Icon(Icons.share_rounded),
+          style: IconButton.styleFrom(backgroundColor: Colors.white24),
+          color: Colors.white,
+        ),
+        const SizedBox(width: 8),
         Consumer2<FavoritesProvider, PlaylistProvider>(
           builder: (context, fav, playlistProv, _) {
             final isFav = fav.isVodFavorite(widget.series.streamId);

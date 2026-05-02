@@ -1,27 +1,27 @@
 {
-  "version": "1.4.66",
-  "build": 186,
+  "version": "1.4.67",
+  "build": 187,
   "releaseDate": "2026-04-30",
   "assets": {
-    "windows": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.66/flutteriptv-Windows-x64-Setup.exe",
+    "windows": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.67/flutteriptv-Windows-x64-Setup.exe",
     "android_mobile": {
-      "arm64-v8a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.66/flutteriptv-Android-arm64.apk",
-      "armeabi-v7a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.66/flutteriptv-Android-arm64.apk",
-      "x86_64": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.66/flutteriptv-Android-arm64.apk"
+      "arm64-v8a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.67/flutteriptv-Android-arm64.apk",
+      "armeabi-v7a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.67/flutteriptv-Android-arm64.apk",
+      "x86_64": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.67/flutteriptv-Android-arm64.apk"
     },
     "android_tv": {
-      "arm64-v8a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.66/flutteriptv-Android-arm64.apk",
-      "armeabi-v7a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.66/flutteriptv-Android-arm64.apk",
-      "x86_64": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.66/flutteriptv-Android-arm64.apk"
+      "arm64-v8a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.67/flutteriptv-Android-arm64.apk",
+      "armeabi-v7a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.67/flutteriptv-Android-arm64.apk",
+      "x86_64": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.67/flutteriptv-Android-arm64.apk"
     },
     "ios": {
-      "universal": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.66/flutteriptv-iOS-unsigned.ipa"
+      "universal": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.67/flutteriptv-iOS-unsigned.ipa"
     }
   },
   "changelog": {
-    "pt": "Partilhar filme/série (WhatsApp): anexo com capa TMDB + links luminora:// e trailer YouTube\nDeep link Android luminora://movie — abre o filme na app\nOpcional: SHARE_WEB_BASE_URL e ANDROID_STORE_URL no .env\nInclui melhorias da branch perfil/partilha fundidas com Home (IPTV admin, jogos do dia)",
-    "en": "Share movie with poster image; deep links; optional web base URL in .env",
-    "zh": "分享影片含海报；深度链接"
+    "pt": "CI: flutter analyze no release; Android sem secrets usa assinatura debug; Windows fallback zip se Inno Setup ausente\ncross_file explícito na partilha\nMesmas funcionalidades 1.4.66 (partilha capa, deep links)",
+    "en": "CI fixes for GitHub Actions release workflow",
+    "zh": "CI 修复"
   },
   "minVersion": "1.0.0"
 }

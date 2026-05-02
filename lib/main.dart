@@ -15,7 +15,6 @@ import 'core/theme/app_theme.dart';
 import 'core/navigation/app_router.dart';
 import 'package:app_links/app_links.dart';
 import 'core/navigation/movie_link_handler.dart';
-import 'core/navigation/pending_share_link.dart';
 import 'core/services/service_locator.dart';
 import 'core/services/auto_refresh_service.dart';
 import 'core/platform/native_player_channel.dart';

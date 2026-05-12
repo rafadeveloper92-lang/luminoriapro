@@ -28,6 +28,7 @@ import '../../multi_screen/widgets/multi_screen_player.dart';
 import '../../profile/providers/profile_provider.dart';
 import '../../../core/services/service_locator.dart';
 import '../../../core/services/friends_service.dart';
+import '../../../core/services/vod_watch_history_service.dart';
 import '../../../core/config/license_config.dart';
 import '../../../core/services/license_service.dart';
 import '../../../core/services/stripe_checkout_service.dart';
@@ -54,6 +55,12 @@ class PlayerScreen extends StatefulWidget {
   final double? outroStart;
   final double? outroEnd;
 
+  /// Posição inicial para retomar reprodução (ms). 0 = começa do início.
+  final int startPositionMs;
+
+  /// Stream ID do conteúdo VOD para guardar posição de retoma.
+  final String? vodStreamId;
+
   const PlayerScreen({
     super.key,
     required this.channelUrl,
@@ -67,6 +74,8 @@ class PlayerScreen extends StatefulWidget {
     this.introEnd,
     this.outroStart,
     this.outroEnd,
+    this.startPositionMs = 0,
+    this.vodStreamId,
   });
 
   @override
@@ -134,6 +143,10 @@ class _PlayerScreenState extends State<PlayerScreen>
   Timer? _watchSessionReportTimer;
   int _lastReportedSessionMinutes = 0;
 
+  // Guardar posição VOD (Continuar Assistindo)
+  Timer? _savePositionTimer;
+  bool _seekedToStart = false;
+
   // Próximo episódio
   int _currentEpisodeIndex = -1;
   bool _showNextEpisodeOverlay = false;
@@ -158,6 +171,7 @@ class _PlayerScreenState extends State<PlayerScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _currentEpisodeIndex = widget.episodeStartIndex;
+    _seekedToStart = widget.startPositionMs == 0;
     _introStart = widget.introStart;
     _introEnd = widget.introEnd;
     _outroStart = widget.outroStart;
@@ -269,6 +283,27 @@ class _PlayerScreenState extends State<PlayerScreen>
 
     // Detectar fim do episódio para mostrar overlay de próximo episódio
     _checkNextEpisodeOverlay(provider);
+
+    // Seek para posição de retoma na primeira vez que o player estiver a reproduzir
+    if (!_seekedToStart &&
+        widget.isVod &&
+        widget.startPositionMs > 0 &&
+        provider.state == PlayerState.playing &&
+        provider.duration > Duration.zero) {
+      _seekedToStart = true;
+      provider.seek(Duration(milliseconds: widget.startPositionMs));
+    }
+
+    // Iniciar timer para guardar posição a cada 10s (VOD com stream ID)
+    if (widget.isVod &&
+        widget.vodStreamId != null &&
+        widget.vodStreamId!.isNotEmpty &&
+        provider.state == PlayerState.playing &&
+        _savePositionTimer == null) {
+      _savePositionTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+        _saveCurrentPosition();
+      });
+    }
 
     // 只有 DLNA 投屏会话时才同步播放状态
     try {
@@ -494,6 +529,21 @@ class _PlayerScreenState extends State<PlayerScreen>
           ),
         ),
       ),
+    );
+  }
+
+  void _saveCurrentPosition() {
+    final streamId = widget.vodStreamId;
+    if (streamId == null || streamId.isEmpty) return;
+    final provider = _playerProvider;
+    if (provider == null) return;
+    final pos = provider.position.inMilliseconds;
+    final dur = provider.duration.inMilliseconds;
+    if (pos <= 0 || dur <= 0) return;
+    VodWatchHistoryService.instance.updateWatchPosition(
+      streamId: streamId,
+      positionMs: pos,
+      durationMs: dur,
     );
   }
 
@@ -940,6 +990,9 @@ class _PlayerScreenState extends State<PlayerScreen>
 
     _nextEpisodeTimer?.cancel();
     _nextEpisodeTimer = null;
+    _savePositionTimer?.cancel();
+    _savePositionTimer = null;
+    if (widget.isVod) _saveCurrentPosition();
 
     // 然后清除所有错误提示和定时器
     _errorHideTimer?.cancel();

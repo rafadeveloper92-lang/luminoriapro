@@ -5,6 +5,10 @@ import 'package:provider/provider.dart';
 import '../../../core/models/xtream_models.dart';
 import '../../../core/services/xtream_service.dart';
 import '../../../core/services/tmdb_service.dart';
+import '../../../core/services/vod_watch_history_service.dart';
+import '../../../core/models/user_profile.dart' show VodWatchHistoryItem;
+import '../../../core/navigation/app_router.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../channels/providers/channel_provider.dart';
 import '../../favorites/providers/favorites_provider.dart';
 import '../../playlist/providers/playlist_provider.dart';
@@ -180,10 +184,20 @@ class _SeriesCatalogScreenState extends State<SeriesCatalogScreen> {
   // Cache de metadados do TMDB (ID -> Dados)
   final Map<String, Map<String, dynamic>> _tmdbCache = {};
 
+  // Continuar Assistindo (séries)
+  List<VodWatchHistoryItem> _continueWatching = [];
+
   @override
   void initState() {
     super.initState();
     _loadHomeData();
+    _loadContinueWatching();
+  }
+
+  Future<void> _loadContinueWatching() async {
+    final items = await VodWatchHistoryService.instance.getContinueWatching();
+    final seriesOnly = items.where((i) => i.contentType == 'series').toList();
+    if (mounted) setState(() => _continueWatching = seriesOnly);
   }
 
   String _seriesCategoryDisplayName(XtreamCategory cat) {
@@ -542,6 +556,8 @@ class _SeriesCatalogScreenState extends State<SeriesCatalogScreen> {
         children: [
           if (_featuredSeries != null) _buildFeaturedHeader(),
           const SizedBox(height: 20),
+          if (_continueWatching.isNotEmpty) _buildContinueWatchingRow(),
+          if (_continueWatching.isNotEmpty) const SizedBox(height: 20),
           if (_top10Series.isNotEmpty) 
             _buildHorizontalList('Top 10 Séries Hoje', _top10Series, isTop10: true),
           if (_popularSeries.isNotEmpty) 
@@ -666,6 +682,110 @@ class _SeriesCatalogScreenState extends State<SeriesCatalogScreen> {
                 ],
               ),
             ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildContinueWatchingRow() {
+    final primary = AppTheme.getPrimaryColor(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          child: Row(
+            children: [
+              Container(
+                width: 4, height: 20,
+                decoration: BoxDecoration(color: primary, borderRadius: BorderRadius.circular(2)),
+              ),
+              const SizedBox(width: 10),
+              const Text('Continuar Assistindo',
+                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            ],
+          ),
+        ),
+        SizedBox(
+          height: 190,
+          child: ListView.separated(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            scrollDirection: Axis.horizontal,
+            itemCount: _continueWatching.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (context, index) {
+              final item = _continueWatching[index];
+              return GestureDetector(
+                onTap: () {
+                  // Para séries, navega para a tela de detalhes (não tem URL direta)
+                  Navigator.pushNamed(context, AppRouter.player, arguments: {
+                    'channelUrl': '',
+                    'channelName': item.name,
+                    'isVod': true,
+                    'startPositionMs': item.positionMs,
+                    'vodStreamId': item.streamId,
+                  }).then((_) => _loadContinueWatching());
+                },
+                child: SizedBox(
+                  width: 120,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            ClipRRect(
+                              borderRadius: const BorderRadius.vertical(top: Radius.circular(10)),
+                              child: CachedNetworkImage(
+                                imageUrl: item.posterUrl ?? '',
+                                fit: BoxFit.cover,
+                                errorWidget: (_, __, ___) => Container(
+                                  color: Colors.grey[850],
+                                  child: const Icon(Icons.tv, color: Colors.white24, size: 36),
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              bottom: 0, left: 0, right: 0,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 4),
+                                decoration: const BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.bottomCenter,
+                                    end: Alignment.topCenter,
+                                    colors: [Colors.black87, Colors.transparent],
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [Icon(Icons.play_circle_fill, color: primary, size: 28)],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      ClipRRect(
+                        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(10)),
+                        child: LinearProgressIndicator(
+                          value: item.progress,
+                          backgroundColor: Colors.white12,
+                          valueColor: AlwaysStoppedAnimation(primary),
+                          minHeight: 4,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(item.name,
+                          style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w500),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis),
+                    ],
+                  ),
+                ),
+              );
+            },
           ),
         ),
       ],

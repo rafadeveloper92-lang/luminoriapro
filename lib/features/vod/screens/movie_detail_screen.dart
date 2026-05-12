@@ -166,6 +166,7 @@ class _MovieDetailScreenState extends State<MovieDetailScreen> {
         'channelName': widget.movie.name,
         'channelLogo': widget.movie.streamIcon,
         'isVod': true,
+        'vodStreamId': widget.movie.streamId,
       },
     );
   }

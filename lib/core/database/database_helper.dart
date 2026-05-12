@@ -9,7 +9,7 @@ import '../services/service_locator.dart';
 class DatabaseHelper {
   static Database? _database;
   static const String _databaseName = 'flutter_iptv.db';
-  static const int _databaseVersion = 12; // series_episode_watched para marcar episódios assistidos
+  static const int _databaseVersion = 13; // position_ms e duration_ms em vod_watch_history
 
   Future<void> initialize() async {
     ServiceLocator.log.d('DatabaseHelper: 开始初始化数据库');
@@ -157,7 +157,9 @@ class DatabaseHelper {
         name TEXT NOT NULL,
         poster_url TEXT,
         content_type TEXT DEFAULT 'movie',
-        watched_at INTEGER NOT NULL
+        watched_at INTEGER NOT NULL,
+        position_ms INTEGER DEFAULT 0,
+        duration_ms INTEGER DEFAULT 0
       )
     ''');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_vod_watch_history_at ON vod_watch_history(watched_at DESC)');
@@ -386,6 +388,14 @@ class DatabaseHelper {
         ''');
       } catch (e) {
         ServiceLocator.log.d('Migration error (series_episode_watched): $e');
+      }
+    }
+    if (oldVersion < 13) {
+      try {
+        await db.execute('ALTER TABLE vod_watch_history ADD COLUMN position_ms INTEGER DEFAULT 0');
+        await db.execute('ALTER TABLE vod_watch_history ADD COLUMN duration_ms INTEGER DEFAULT 0');
+      } catch (e) {
+        ServiceLocator.log.d('Migration error (v13 position_ms): $e');
       }
     }
     if (oldVersion < 7) {

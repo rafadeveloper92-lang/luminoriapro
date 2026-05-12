@@ -44,6 +44,8 @@ import '../widgets/home_sports_carousel.dart';
 import '../../../core/models/channel.dart';
 import '../../../core/models/home_sports_slide.dart';
 import '../../../core/services/home_sports_service.dart';
+import '../../../core/services/vod_watch_history_service.dart';
+import '../../../core/models/user_profile.dart' show VodWatchHistoryItem;
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -68,6 +70,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
   List<XtreamStream> _newReleases = [];
   final Map<String, List<XtreamStream>> _movieCategoryContent = {};
   final Map<String, Map<String, dynamic>> _tmdbCache = {};
+
+  // Continuar Assistindo
+  List<VodWatchHistoryItem> _continueWatching = [];
   final TmdbService _tmdbService = TmdbService();
 
   final ScrollController _top10ScrollController = ScrollController();
@@ -578,8 +583,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
       ServiceLocator.log.e('Error loading movie data: $e');
     } finally {
       ServiceLocator.log.d('HomeScreen: _loadMovieData DONE', tag: 'HomeScreen');
-        if (mounted) setState(() => _isLoadingMovies = false);
+      if (mounted) setState(() => _isLoadingMovies = false);
+      _loadContinueWatching();
     }
+  }
+
+  Future<void> _loadContinueWatching() async {
+    final items = await VodWatchHistoryService.instance.getContinueWatching();
+    if (mounted) setState(() => _continueWatching = items);
   }
 
   Future<void> _loadHomeSports() async {
@@ -877,6 +888,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
               if (_homeSportsSlides.isNotEmpty) HomeSportsCarousel(slides: _homeSportsSlides),
               if (_featuredMovie != null) _buildHeroBanner(),
               const SizedBox(height: 20),
+              if (_continueWatching.isNotEmpty) _buildContinueWatchingRow(),
+              if (_continueWatching.isNotEmpty) const SizedBox(height: 20),
               if (_newReleases.isNotEmpty) _buildHorizontalMovieSection('Lançamentos recentes', _newReleases),
               const SizedBox(height: 20),
               if (_top10Movies.isNotEmpty) _buildSectionTitle('Top 10 Filmes da Semana'),
@@ -1056,6 +1069,139 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
         },
       ),
     );
+  }
+
+  Widget _buildContinueWatchingRow() {
+    final primary = AppTheme.getPrimaryColor(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          child: Row(
+            children: [
+              Container(
+                width: 4, height: 20,
+                decoration: BoxDecoration(color: primary, borderRadius: BorderRadius.circular(2)),
+              ),
+              const SizedBox(width: 10),
+              const Text(
+                'Continuar Assistindo',
+                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(
+          height: 190,
+          child: ListView.separated(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            scrollDirection: Axis.horizontal,
+            itemCount: _continueWatching.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (context, index) {
+              final item = _continueWatching[index];
+              return GestureDetector(
+                onTap: () => _openContinueWatching(item),
+                child: SizedBox(
+                  width: 120,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            ClipRRect(
+                              borderRadius: const BorderRadius.vertical(top: Radius.circular(10)),
+                              child: CachedNetworkImage(
+                                imageUrl: item.posterUrl ?? '',
+                                fit: BoxFit.cover,
+                                errorWidget: (_, __, ___) => Container(
+                                  color: Colors.grey[850],
+                                  child: const Icon(Icons.movie, color: Colors.white24, size: 36),
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              bottom: 0, left: 0, right: 0,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                                decoration: const BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.bottomCenter,
+                                    end: Alignment.topCenter,
+                                    colors: [Colors.black87, Colors.transparent],
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.play_circle_fill, color: primary, size: 28),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Barra de progresso
+                      ClipRRect(
+                        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(10)),
+                        child: LinearProgressIndicator(
+                          value: item.progress,
+                          backgroundColor: Colors.white12,
+                          valueColor: AlwaysStoppedAnimation(primary),
+                          minHeight: 4,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        item.name,
+                        style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w500),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _openContinueWatching(VodWatchHistoryItem item) {
+    Navigator.pushNamed(
+      context,
+      AppRouter.player,
+      arguments: {
+        'channelUrl': _buildVodUrlForHistory(item),
+        'channelName': item.name,
+        'isVod': true,
+        'startPositionMs': item.positionMs,
+        'vodStreamId': item.streamId,
+      },
+    ).then((_) => _loadContinueWatching());
+  }
+
+  String _buildVodUrlForHistory(VodWatchHistoryItem item) {
+    // Tenta reconstruir a URL VOD a partir das credenciais Xtream
+    try {
+      final provider = context.read<ChannelProvider>();
+      if (!provider.isXtream) return '';
+      final service = XtreamService();
+      service.configure(provider.xtreamBaseUrl!, provider.xtreamUsername!, provider.xtreamPassword!);
+      if (item.contentType == 'series') {
+        // Para séries, a URL não pode ser reconstruída facilmente — abre a home
+        return '';
+      }
+      return service.getVodStreamUrl(item.streamId, 'mp4');
+    } catch (_) {
+      return '';
+    }
   }
 
   Widget _buildHorizontalMovieSection(String title, List<XtreamStream> movies) {

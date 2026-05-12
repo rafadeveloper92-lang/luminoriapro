@@ -201,10 +201,16 @@ class _SeriesDetailScreenState extends State<SeriesDetailScreen> {
     if (extension.startsWith('.')) extension = extension.substring(1);
     final url = service.getSeriesEpisodeUrl(episode.id, extension);
 
-    // Buscar timestamps de abertura/encerramento do Aniskip (se MAL ID disponível)
+    // Buscar timestamps Aniskip — máx. 2s para não bloquear a navegação
     EpisodeSkipTimes? skipTimes;
     if (_malId != null) {
-      skipTimes = await AniskipService.instance.getSkipTimes(_malId!, episode.episodeNum);
+      try {
+        skipTimes = await AniskipService.instance
+            .getSkipTimes(_malId!, episode.episodeNum)
+            .timeout(const Duration(seconds: 2), onTimeout: () => const EpisodeSkipTimes());
+      } catch (_) {
+        skipTimes = null;
+      }
     }
 
     if (!mounted) return;
@@ -217,6 +223,7 @@ class _SeriesDetailScreenState extends State<SeriesDetailScreen> {
         'channelName': '${widget.series.name} - S${episode.season}E${episode.episodeNum} - ${episode.title}',
         'channelLogo': widget.series.streamIcon,
         'isVod': true,
+        'vodStreamId': episode.id,
         'episodePlaylist': playlist,
         'episodeStartIndex': episodeIndex,
         if (skipTimes?.opening != null) ...{

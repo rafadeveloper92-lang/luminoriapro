@@ -193,8 +193,8 @@ class VodWatchHistoryItem {
   double get progress =>
       durationMs > 0 ? (positionMs / durationMs).clamp(0.0, 1.0) : 0.0;
 
-  /// true se o conteúdo está em curso (entre 2% e 95% assistido).
-  bool get isInProgress => durationMs > 0 && progress > 0.02 && progress < 0.95;
+  /// true se o conteúdo está em curso (assistido > 5s e entre 1% e 95%).
+  bool get isInProgress => durationMs > 0 && positionMs > 5000 && progress >= 0.01 && progress < 0.95;
 
   factory VodWatchHistoryItem.fromMap(Map<String, dynamic> map) {
     DateTime watchedAt;

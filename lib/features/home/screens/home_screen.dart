@@ -116,6 +116,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
     super.didPopNext();
     _refreshWatchHistory();
     _loadHomeSports();
+    _loadContinueWatching();
     _checkPendingOpenFriendsPanel();
   }
 

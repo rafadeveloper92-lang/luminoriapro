@@ -188,8 +188,8 @@ class VodWatchHistoryService {
       final result = await _db.rawQuery(
         '''SELECT * FROM $_tableLocal
            WHERE duration_ms > 0
-             AND position_ms > 0
-             AND CAST(position_ms AS REAL) / duration_ms > 0.02
+             AND position_ms > 5000
+             AND CAST(position_ms AS REAL) / duration_ms >= 0.01
              AND CAST(position_ms AS REAL) / duration_ms < 0.95
            ORDER BY watched_at DESC LIMIT ?''',
         [limit],

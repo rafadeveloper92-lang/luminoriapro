@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import '../../features/friends/providers/friends_provider.dart';
 import '../navigation/app_router.dart';
 import '../services/notification_service.dart';
+import '../services/local_notification_service.dart';
 import '../theme/app_theme.dart';
 
 /// Banner de notificação no topo (mensagens, pedidos de amizade, amigo online / a assistir).
@@ -51,10 +52,21 @@ class _NotificationBannerOverlayState extends State<NotificationBannerOverlay> {
     }
   }
 
+  static int _notifId = 0;
+
   void _showBanner(AppNotification n) {
     if (!mounted) return;
 
     _playSound(n.type);
+
+    // Notificação nativa do sistema (aparece mesmo com app em background)
+    LocalNotificationService.instance.show(
+      id: ++_notifId,
+      title: n.title,
+      body: n.body,
+      type: n.type,
+    );
+
     _dismissTimer?.cancel();
     _removeBanner();
     final overlay = Overlay.of(context);

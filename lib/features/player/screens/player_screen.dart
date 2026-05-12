@@ -128,6 +128,11 @@ class _PlayerScreenState extends State<PlayerScreen>
   int _nextEpisodeCountdown = 10;
   Timer? _nextEpisodeTimer;
 
+  // Pular abertura
+  bool _introDismissed = false;
+  static const int _introSkipSeconds = 85;
+  static const int _introWindowEnd = 300; // botão visível até 5 min
+
   // 检查是否处于分屏模式（使用本地状态）
   bool _isMultiScreenMode() {
     return _localMultiScreenMode && PlatformDetector.isDesktop;
@@ -318,6 +323,7 @@ class _PlayerScreenState extends State<PlayerScreen>
     setState(() {
       _currentEpisodeIndex = nextIndex;
       _isLoading = true;
+      _introDismissed = false;
     });
     FriendsService.instance.setUserPlayingContent(name);
     _playerProvider?.playUrl(url, name: name);
@@ -388,6 +394,40 @@ class _PlayerScreenState extends State<PlayerScreen>
                 ],
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  bool get _showSkipIntroButton {
+    if (!widget.isVod || _introDismissed) return false;
+    final pos = _playerProvider?.position.inSeconds ?? 0;
+    return pos > 5 && pos < _introWindowEnd;
+  }
+
+  Widget _buildSkipIntroButton() {
+    return Positioned(
+      left: 24,
+      bottom: 100,
+      child: AnimatedOpacity(
+        opacity: _showControls ? 1.0 : 0.0,
+        duration: const Duration(milliseconds: 300),
+        child: OutlinedButton(
+          onPressed: () {
+            _playerProvider?.seekForward(_introSkipSeconds);
+            setState(() => _introDismissed = true);
+          },
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Colors.white,
+            side: const BorderSide(color: Colors.white70, width: 1.5),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+            backgroundColor: Colors.black.withOpacity(0.6),
+          ),
+          child: const Text(
+            'Pular Abertura',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: 0.5),
           ),
         ),
       ),
@@ -1538,6 +1578,10 @@ class _PlayerScreenState extends State<PlayerScreen>
                         ),
                       ),
                     ),
+
+                  // Botão pular abertura (séries/VOD)
+                  if (_showSkipIntroButton && !_isMultiScreenMode())
+                    _buildSkipIntroButton(),
 
                   // Overlay de próximo episódio (séries)
                   if (_showNextEpisodeOverlay && !_isMultiScreenMode())

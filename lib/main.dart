@@ -35,6 +35,8 @@ import 'package:flutter_iptv/features/friends/providers/friends_provider.dart';
 import 'package:flutter_iptv/features/rank/providers/rank_provider.dart';
 import 'core/widgets/notification_banner.dart';
 import 'core/services/local_notification_service.dart';
+import 'core/services/fcm_service.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'core/widgets/window_title_bar.dart';
 import 'core/config/license_config.dart';
 import 'core/services/admin_auth_service.dart';
@@ -55,6 +57,13 @@ void main() async {
     // Initialize critical services FIRST (before any logging)
     await ServiceLocator.initPrefs();
     await LocalNotificationService.instance.initialize();
+
+    // Firebase: inicializa para notificações push (FCM)
+    try {
+      await Firebase.initializeApp();
+    } catch (e) {
+      // Falha silenciosa se google-services.json não estiver configurado
+    }
 
     // Supabase: inicializa se URL e Anon Key estiverem no .env ou em --dart-define
     try {
@@ -343,6 +352,7 @@ class _DlnaAwareAppState extends State<_DlnaAwareApp> with WindowListener, Widge
   void _startPresenceAndRealtime() {
     if (!LicenseConfig.isConfigured || AdminAuthService.instance.currentUserId == null) return;
     FriendsService.instance.setUserStatus('online');
+    FcmService.instance.initialize();
     try {
       context.read<FriendsProvider>().startRealtimeSubscriptions();
     } catch (_) {}

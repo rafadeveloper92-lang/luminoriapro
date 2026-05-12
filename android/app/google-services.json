@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1052515641071",
+    "project_id": "luminorapro",
+    "storage_bucket": "luminorapro.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1052515641071:android:73bd0378f6274600975d1a",
+        "android_client_info": {
+          "package_name": "com.flutteriptv.flutter_iptv"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBqKz-0Cztq_pAlt8vRmlu2X9KazVXwjto"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

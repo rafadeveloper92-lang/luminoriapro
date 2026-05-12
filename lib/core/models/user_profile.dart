@@ -175,6 +175,8 @@ class VodWatchHistoryItem {
     this.posterUrl,
     this.contentType = 'movie',
     required this.watchedAt,
+    this.positionMs = 0,
+    this.durationMs = 0,
   });
 
   final String streamId;
@@ -182,6 +184,17 @@ class VodWatchHistoryItem {
   final String? posterUrl;
   final String contentType;
   final DateTime watchedAt;
+  /// Posição de reprodução em milissegundos (para "Continuar Assistindo").
+  final int positionMs;
+  /// Duração total em milissegundos.
+  final int durationMs;
+
+  /// Percentagem de progresso (0.0 – 1.0). Retorna 0 se duração desconhecida.
+  double get progress =>
+      durationMs > 0 ? (positionMs / durationMs).clamp(0.0, 1.0) : 0.0;
+
+  /// true se o conteúdo está em curso (entre 2% e 95% assistido).
+  bool get isInProgress => durationMs > 0 && progress > 0.02 && progress < 0.95;
 
   factory VodWatchHistoryItem.fromMap(Map<String, dynamic> map) {
     DateTime watchedAt;
@@ -199,6 +212,8 @@ class VodWatchHistoryItem {
       posterUrl: map['poster_url'] as String?,
       contentType: map['content_type'] as String? ?? 'movie',
       watchedAt: watchedAt,
+      positionMs: (map['position_ms'] as int?) ?? 0,
+      durationMs: (map['duration_ms'] as int?) ?? 0,
     );
   }
 }

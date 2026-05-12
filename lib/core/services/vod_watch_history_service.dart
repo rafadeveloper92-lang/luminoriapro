@@ -166,6 +166,57 @@ class VodWatchHistoryService {
     } catch (_) {}
   }
 
+  /// Atualiza a posição de reprodução de um item (para "Continuar Assistindo").
+  Future<void> updateWatchPosition({
+    required String streamId,
+    required int positionMs,
+    required int durationMs,
+  }) async {
+    try {
+      await _db.rawQuery(
+        'UPDATE $_tableLocal SET position_ms = ?, duration_ms = ?, watched_at = ? WHERE stream_id = ?',
+        [positionMs, durationMs, DateTime.now().millisecondsSinceEpoch, streamId],
+      );
+    } catch (e) {
+      ServiceLocator.log.e('VodWatchHistoryService.updateWatchPosition: $e');
+    }
+  }
+
+  /// Retorna os itens em curso (entre 2% e 95% assistidos) para "Continuar Assistindo".
+  Future<List<VodWatchHistoryItem>> getContinueWatching({int limit = 20}) async {
+    try {
+      final result = await _db.rawQuery(
+        '''SELECT * FROM $_tableLocal
+           WHERE duration_ms > 0
+             AND position_ms > 0
+             AND CAST(position_ms AS REAL) / duration_ms > 0.02
+             AND CAST(position_ms AS REAL) / duration_ms < 0.95
+           ORDER BY watched_at DESC LIMIT ?''',
+        [limit],
+      );
+      return result
+          .map((r) => VodWatchHistoryItem.fromMap(Map<String, dynamic>.from(r)))
+          .toList();
+    } catch (e) {
+      ServiceLocator.log.e('VodWatchHistoryService.getContinueWatching: $e');
+      return [];
+    }
+  }
+
+  /// Retorna a posição guardada para um stream específico (0 se não houver).
+  Future<int> getSavedPosition(String streamId) async {
+    try {
+      final rows = await _db.rawQuery(
+        'SELECT position_ms FROM $_tableLocal WHERE stream_id = ? LIMIT 1',
+        [streamId],
+      );
+      if (rows.isEmpty) return 0;
+      return (rows.first['position_ms'] as int?) ?? 0;
+    } catch (_) {
+      return 0;
+    }
+  }
+
   /// Retorna os últimos itens assistidos do usuário atual (timeline própria: local).
   Future<List<VodWatchHistoryItem>> getWatchHistory({int limit = 20}) async {
     try {

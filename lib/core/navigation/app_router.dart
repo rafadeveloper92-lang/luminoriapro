@@ -93,6 +93,8 @@ class AppRouter {
             introEnd: (args?['introEnd'] as num?)?.toDouble(),
             outroStart: (args?['outroStart'] as num?)?.toDouble(),
             outroEnd: (args?['outroEnd'] as num?)?.toDouble(),
+            startPositionMs: args?['startPositionMs'] ?? 0,
+            vodStreamId: args?['vodStreamId'] as String?,
           ),
           settings,
         );

@@ -594,6 +594,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       icon: Icons.admin_panel_settings_rounded,
                       onTap: () => Navigator.of(context).pushNamed(AppRouter.admin),
                     ),
+                  if (_isAdmin)
+                    _buildActionTile(
+                      context,
+                      title: '📢 Anunciar Novo Conteúdo',
+                      subtitle: 'Enviar notificação push para todos',
+                      icon: Icons.campaign_rounded,
+                      onTap: () => Navigator.of(context).pushNamed(AppRouter.announcement),
+                    ),
                   if (_isAdmin) _buildDivider(),
                   _buildActionTile(
                     context,

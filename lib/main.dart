@@ -34,6 +34,7 @@ import 'package:flutter_iptv/features/profile/providers/theme_provider.dart';
 import 'package:flutter_iptv/features/friends/providers/friends_provider.dart';
 import 'package:flutter_iptv/features/rank/providers/rank_provider.dart';
 import 'core/widgets/notification_banner.dart';
+import 'core/services/local_notification_service.dart';
 import 'core/widgets/window_title_bar.dart';
 import 'core/config/license_config.dart';
 import 'core/services/admin_auth_service.dart';
@@ -53,6 +54,7 @@ void main() async {
 
     // Initialize critical services FIRST (before any logging)
     await ServiceLocator.initPrefs();
+    await LocalNotificationService.instance.initialize();
 
     // Supabase: inicializa se URL e Anon Key estiverem no .env ou em --dart-define
     try {

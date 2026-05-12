@@ -1,27 +1,27 @@
 {
-  "version": "1.4.71",
-  "build": 191,
+  "version": "1.4.72",
+  "build": 192,
   "releaseDate": "2026-05-12",
   "assets": {
-    "windows": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.71/flutteriptv-Windows-x64-Setup.exe",
+    "windows": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.72/flutteriptv-Windows-x64-Setup.exe",
     "android_mobile": {
-      "arm64-v8a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.71/flutteriptv-Android-arm64.apk",
-      "armeabi-v7a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.71/flutteriptv-Android-arm64.apk",
-      "x86_64": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.71/flutteriptv-Android-arm64.apk"
+      "arm64-v8a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.72/flutteriptv-Android-arm64.apk",
+      "armeabi-v7a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.72/flutteriptv-Android-arm64.apk",
+      "x86_64": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.72/flutteriptv-Android-arm64.apk"
     },
     "android_tv": {
-      "arm64-v8a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.71/flutteriptv-Android-arm64.apk",
-      "armeabi-v7a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.71/flutteriptv-Android-arm64.apk",
-      "x86_64": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.71/flutteriptv-Android-arm64.apk"
+      "arm64-v8a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.72/flutteriptv-Android-arm64.apk",
+      "armeabi-v7a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.72/flutteriptv-Android-arm64.apk",
+      "x86_64": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.72/flutteriptv-Android-arm64.apk"
     },
     "ios": {
-      "universal": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.71/flutteriptv-iOS-unsigned.ipa"
+      "universal": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.72/flutteriptv-iOS-unsigned.ipa"
     }
   },
   "changelog": {
-    "pt": "Hotfix: séries agora aparecem em Continuar Assistindo; timeout Aniskip reduzido para evitar demora ao abrir episódios; threshold de progresso corrigido (1% em vez de 2%).",
-    "en": "Hotfix: series now appear in Continue Watching; Aniskip timeout reduced; progress threshold fixed (1% instead of 2%).",
-    "zh": "热修复：系列现在出现在继续观看中；Aniskip超时减少；进度阈值修复"
+    "pt": "Hotfix: séries em 'Continuar Assistindo' agora funcionam corretamente (URL e posição guardada); app abre com categorias imediatamente do cache local.",
+    "en": "Hotfix: series in Continue Watching now work correctly (URL and saved position); app opens with categories instantly from local cache.",
+    "zh": "热修复：继续观看中的剧集现在正确工作；应用程序从本地缓存立即打开类别。"
   },
   "minVersion": "1.0.0"
 }

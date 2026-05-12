@@ -40,7 +40,7 @@ class _FriendsPanelState extends State<FriendsPanel> {
   Widget build(BuildContext context) {
     final primary = AppTheme.getPrimaryColor(context);
     final width = MediaQuery.of(context).size.width * 0.9;
-    final maxWidth = 400.0;
+    const maxWidth = 400.0;
     final panelWidth = width > maxWidth ? maxWidth : width;
 
     return Container(
@@ -350,11 +350,13 @@ class _FriendsPanelState extends State<FriendsPanel> {
                     if (prov.playingContent != null && prov.playingContent!.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 4),
-                        child: Text(
-                          'Assistindo: ${prov.playingContent}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(color: primary, fontSize: 12, fontWeight: FontWeight.w500),
+                        child: _MarqueeText(
+                          text: 'Assistindo: ${prov.playingContent}',
+                          style: TextStyle(
+                            color: primary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       )
                     else
@@ -395,8 +397,8 @@ class _FriendsPanelState extends State<FriendsPanel> {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (value == current)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
+            const Padding(
+              padding: EdgeInsets.only(right: 8),
               child: Icon(Icons.check, color: AppTheme.primaryColor, size: 20),
             ),
           Text(label, style: const TextStyle(color: Colors.white)),
@@ -743,7 +745,7 @@ class _AddFavoriteButton extends StatelessWidget {
                           searchController.text.trim().length < 2
                               ? 'Digite ao menos 2 caracteres para buscar'
                               : 'Nenhum usuário encontrado',
-                          style: TextStyle(color: Colors.white54, fontSize: 14),
+                          style: const TextStyle(color: Colors.white54, fontSize: 14),
                         ),
                       );
                     }
@@ -906,11 +908,8 @@ class _FriendCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 2),
-          Text(
-            statusLabel,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
+          _MarqueeText(
+            text: statusLabel,
             style: TextStyle(
               color: isWatching ? primary : Colors.white.withOpacity(0.6),
               fontSize: 10,
@@ -1230,9 +1229,12 @@ class _SuggestionCardState extends State<_SuggestionCard> {
                     style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
                   ),
                   if (widget.friend.playingGame != null)
-                    Text(
-                      widget.friend.playingGame!,
-                      style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 11),
+                    _MarqueeText(
+                      text: widget.friend.playingGame!,
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.6),
+                        fontSize: 11,
+                      ),
                     ),
                 ],
               ),
@@ -1282,6 +1284,88 @@ class _SuggestionCardState extends State<_SuggestionCard> {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Marquee: rola o texto horizontalmente quando não cabe na largura disponível.
+// ---------------------------------------------------------------------------
+class _MarqueeText extends StatefulWidget {
+  final String text;
+  final TextStyle style;
+
+  const _MarqueeText({required this.text, required this.style});
+
+  @override
+  State<_MarqueeText> createState() => _MarqueeTextState();
+}
+
+class _MarqueeTextState extends State<_MarqueeText> {
+  final ScrollController _sc = ScrollController();
+  bool _running = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _tryStart());
+  }
+
+  @override
+  void didUpdateWidget(_MarqueeText old) {
+    super.didUpdateWidget(old);
+    if (old.text != widget.text) {
+      _running = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_sc.hasClients) _sc.jumpTo(0);
+        _tryStart();
+      });
+    }
+  }
+
+  Future<void> _tryStart() async {
+    if (!mounted || !_sc.hasClients) return;
+    final max = _sc.position.maxScrollExtent;
+    if (max <= 0) return;
+    if (_running) return;
+    _running = true;
+    await _loop();
+  }
+
+  static const _pauseBefore = Duration(milliseconds: 1800);
+  static const _pauseAfter = Duration(milliseconds: 900);
+  static const _pixelsPerSecond = 40.0;
+
+  Future<void> _loop() async {
+    while (mounted && _running) {
+      await Future.delayed(_pauseBefore);
+      if (!mounted || !_running || !_sc.hasClients) break;
+      final max = _sc.position.maxScrollExtent;
+      if (max <= 0) break;
+      final duration = Duration(
+          milliseconds: (max / _pixelsPerSecond * 1000).round());
+      await _sc.animateTo(max, duration: duration, curve: Curves.linear);
+      if (!mounted || !_running) break;
+      await Future.delayed(_pauseAfter);
+      if (!mounted || !_running || !_sc.hasClients) break;
+      _sc.jumpTo(0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _running = false;
+    _sc.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      controller: _sc,
+      scrollDirection: Axis.horizontal,
+      physics: const NeverScrollableScrollPhysics(),
+      child: Text(widget.text, style: widget.style, maxLines: 1),
     );
   }
 }

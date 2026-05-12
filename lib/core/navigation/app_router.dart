@@ -87,6 +87,10 @@ class AppRouter {
             isVod: args?['isVod'] ?? false,
             episodePlaylist: playlist,
             episodeStartIndex: args?['episodeStartIndex'] ?? -1,
+            introStart: (args?['introStart'] as num?)?.toDouble(),
+            introEnd: (args?['introEnd'] as num?)?.toDouble(),
+            outroStart: (args?['outroStart'] as num?)?.toDouble(),
+            outroEnd: (args?['outroEnd'] as num?)?.toDouble(),
           ),
           settings,
         );

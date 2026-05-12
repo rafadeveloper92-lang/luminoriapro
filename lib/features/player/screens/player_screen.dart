@@ -46,6 +46,14 @@ class PlayerScreen extends StatefulWidget {
   /// Índice do episódio atual em [episodePlaylist]. -1 se não for série.
   final int episodeStartIndex;
 
+  /// Timestamps de abertura (Aniskip). Nulos se não houver dados.
+  final double? introStart;
+  final double? introEnd;
+
+  /// Timestamps de encerramento (Aniskip). Nulos se não houver dados.
+  final double? outroStart;
+  final double? outroEnd;
+
   const PlayerScreen({
     super.key,
     required this.channelUrl,
@@ -55,6 +63,10 @@ class PlayerScreen extends StatefulWidget {
     this.isVod = false,
     this.episodePlaylist = const [],
     this.episodeStartIndex = -1,
+    this.introStart,
+    this.introEnd,
+    this.outroStart,
+    this.outroEnd,
   });
 
   @override
@@ -128,10 +140,13 @@ class _PlayerScreenState extends State<PlayerScreen>
   int _nextEpisodeCountdown = 10;
   Timer? _nextEpisodeTimer;
 
-  // Pular abertura
+  // Pular abertura / encerramento (timestamps exatos via Aniskip)
+  double? _introStart;
+  double? _introEnd;
+  double? _outroStart;
+  double? _outroEnd;
   bool _introDismissed = false;
-  static const int _introSkipSeconds = 85;
-  static const int _introWindowEnd = 300; // botão visível até 5 min
+  bool _outroDismissed = false;
 
   // 检查是否处于分屏模式（使用本地状态）
   bool _isMultiScreenMode() {
@@ -143,6 +158,10 @@ class _PlayerScreenState extends State<PlayerScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _currentEpisodeIndex = widget.episodeStartIndex;
+    _introStart = widget.introStart;
+    _introEnd = widget.introEnd;
+    _outroStart = widget.outroStart;
+    _outroEnd = widget.outroEnd;
     // Atualiza status de "assistindo" para amigos (filme/série/canal)
     FriendsService.instance.setUserPlayingContent(widget.channelName);
     // 保持屏幕常亮
@@ -324,6 +343,13 @@ class _PlayerScreenState extends State<PlayerScreen>
       _currentEpisodeIndex = nextIndex;
       _isLoading = true;
       _introDismissed = false;
+      _outroDismissed = false;
+      // Timestamps do Aniskip só estão disponíveis ao entrar pelo series_detail_screen.
+      // No auto-next dentro do player, o botão usa o fallback genérico (primeiros 5 min).
+      _introStart = null;
+      _introEnd = null;
+      _outroStart = null;
+      _outroEnd = null;
     });
     FriendsService.instance.setUserPlayingContent(name);
     _playerProvider?.playUrl(url, name: name);
@@ -400,34 +426,71 @@ class _PlayerScreenState extends State<PlayerScreen>
     );
   }
 
+  double get _posSeconds =>
+      (_playerProvider?.position.inMilliseconds ?? 0) / 1000.0;
+
   bool get _showSkipIntroButton {
-    if (!widget.isVod || _introDismissed) return false;
-    final pos = _playerProvider?.position.inSeconds ?? 0;
-    return pos > 5 && pos < _introWindowEnd;
+    if (_introDismissed) return false;
+    final pos = _posSeconds;
+    if (_introStart != null && _introEnd != null) {
+      // Timestamps exatos do Aniskip
+      return pos >= _introStart! && pos <= _introEnd!;
+    }
+    // Fallback: botão genérico nos primeiros 5 min de VOD
+    return widget.isVod && pos > 5 && pos < 300;
   }
 
-  Widget _buildSkipIntroButton() {
+  bool get _showSkipOutroButton {
+    if (!widget.isVod || _outroDismissed) return false;
+    if (_outroStart == null || _outroEnd == null) return false;
+    final pos = _posSeconds;
+    return pos >= _outroStart! && pos <= _outroEnd!;
+  }
+
+  void _onSkipIntro() {
+    if (_introEnd != null) {
+      _playerProvider?.seek(Duration(milliseconds: (_introEnd! * 1000).round()));
+    } else {
+      _playerProvider?.seekForward(85);
+    }
+    setState(() => _introDismissed = true);
+  }
+
+  void _onSkipOutro() {
+    if (_outroEnd != null) {
+      _playerProvider?.seek(Duration(milliseconds: (_outroEnd! * 1000).round()));
+    }
+    setState(() => _outroDismissed = true);
+  }
+
+  Widget _buildSkipButton({
+    required String label,
+    required VoidCallback onPressed,
+    required bool visible,
+    bool alignRight = false,
+  }) {
     return Positioned(
-      left: 24,
+      left: alignRight ? null : 24,
+      right: alignRight ? 24 : null,
       bottom: 100,
       child: AnimatedOpacity(
-        opacity: _showControls ? 1.0 : 0.0,
+        opacity: (visible && _showControls) ? 1.0 : 0.0,
         duration: const Duration(milliseconds: 300),
-        child: OutlinedButton(
-          onPressed: () {
-            _playerProvider?.seekForward(_introSkipSeconds);
-            setState(() => _introDismissed = true);
-          },
-          style: OutlinedButton.styleFrom(
-            foregroundColor: Colors.white,
-            side: const BorderSide(color: Colors.white70, width: 1.5),
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-            backgroundColor: Colors.black.withOpacity(0.6),
-          ),
-          child: const Text(
-            'Pular Abertura',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: 0.5),
+        child: IgnorePointer(
+          ignoring: !(visible && _showControls),
+          child: OutlinedButton(
+            onPressed: onPressed,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.white,
+              side: const BorderSide(color: Colors.white70, width: 1.5),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+              backgroundColor: Colors.black.withOpacity(0.6),
+            ),
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: 0.5),
+            ),
           ),
         ),
       ),
@@ -1579,9 +1642,22 @@ class _PlayerScreenState extends State<PlayerScreen>
                       ),
                     ),
 
-                  // Botão pular abertura (séries/VOD)
-                  if (_showSkipIntroButton && !_isMultiScreenMode())
-                    _buildSkipIntroButton(),
+                  // Botão pular abertura (timestamps exatos via Aniskip ou fallback 5 min)
+                  if (!_isMultiScreenMode())
+                    _buildSkipButton(
+                      label: 'Pular Abertura',
+                      onPressed: _onSkipIntro,
+                      visible: _showSkipIntroButton,
+                    ),
+
+                  // Botão pular encerramento (timestamps exatos via Aniskip)
+                  if (!_isMultiScreenMode())
+                    _buildSkipButton(
+                      label: 'Pular Encerramento',
+                      onPressed: _onSkipOutro,
+                      visible: _showSkipOutroButton,
+                      alignRight: true,
+                    ),
 
                   // Overlay de próximo episódio (séries)
                   if (_showNextEpisodeOverlay && !_isMultiScreenMode())

@@ -11,6 +11,8 @@ import '../../../core/navigation/app_router.dart';
 import '../../../core/services/share_movie_service.dart';
 import '../../../core/services/vod_watch_history_service.dart';
 import '../../../core/services/episode_watched_service.dart';
+import '../../../core/services/jikan_service.dart';
+import '../../../core/services/aniskip_service.dart';
 import '../widgets/person_modal.dart';
 
 class SeriesDetailScreen extends StatefulWidget {
@@ -38,17 +40,27 @@ class _SeriesDetailScreenState extends State<SeriesDetailScreen> {
   final TmdbService _tmdbService = TmdbService();
 
   Set<String> _watchedEpisodeIds = {};
+  int? _malId;
 
   @override
   void initState() {
     super.initState();
     _loadAllDetails();
     _loadWatchedEpisodes();
+    _resolveMalId();
   }
 
   Future<void> _loadWatchedEpisodes() async {
     final ids = await EpisodeWatchedService.instance.getWatchedEpisodeIds(widget.series.streamId);
     if (mounted) setState(() => _watchedEpisodeIds = ids);
+  }
+
+  /// Tenta resolver o MAL ID da série via Jikan API para uso no Aniskip.
+  Future<void> _resolveMalId() async {
+    final name = widget.series.name;
+    if (name.isEmpty) return;
+    final id = await JikanService.instance.getMalId(name);
+    if (mounted && id != null) setState(() => _malId = id);
   }
 
   Future<void> _loadAllDetails() async {
@@ -151,7 +163,7 @@ class _SeriesDetailScreenState extends State<SeriesDetailScreen> {
     return null;
   }
 
-  void _playEpisode(XtreamEpisode episode) {
+  Future<void> _playEpisode(XtreamEpisode episode) async {
     final provider = context.read<ChannelProvider>();
     final service = XtreamService();
     service.configure(provider.xtreamBaseUrl!, provider.xtreamUsername!, provider.xtreamPassword!);
@@ -189,6 +201,14 @@ class _SeriesDetailScreenState extends State<SeriesDetailScreen> {
     if (extension.startsWith('.')) extension = extension.substring(1);
     final url = service.getSeriesEpisodeUrl(episode.id, extension);
 
+    // Buscar timestamps de abertura/encerramento do Aniskip (se MAL ID disponível)
+    EpisodeSkipTimes? skipTimes;
+    if (_malId != null) {
+      skipTimes = await AniskipService.instance.getSkipTimes(_malId!, episode.episodeNum);
+    }
+
+    if (!mounted) return;
+
     Navigator.pushNamed(
       context,
       AppRouter.player,
@@ -199,6 +219,14 @@ class _SeriesDetailScreenState extends State<SeriesDetailScreen> {
         'isVod': true,
         'episodePlaylist': playlist,
         'episodeStartIndex': episodeIndex,
+        if (skipTimes?.opening != null) ...{
+          'introStart': skipTimes!.opening!.startTime,
+          'introEnd': skipTimes.opening!.endTime,
+        },
+        if (skipTimes?.ending != null) ...{
+          'outroStart': skipTimes!.ending!.startTime,
+          'outroEnd': skipTimes.ending!.endTime,
+        },
       },
     ).then((_) => _loadWatchedEpisodes());
   }

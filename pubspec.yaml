@@ -110,6 +110,7 @@ flutter:
     - assets/html/
     - assets/sql/
     - assets/lottie/
+    - assets/sounds/
 
   fonts:
     # 中文字体

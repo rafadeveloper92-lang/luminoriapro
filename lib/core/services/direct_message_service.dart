@@ -84,6 +84,17 @@ class DirectMessage {
   }
 
   bool get isFromMe => fromUserId == AdminAuthService.instance.currentUserId;
+
+  DirectMessage copyWith({DateTime? readAt}) {
+    return DirectMessage(
+      id: id,
+      fromUserId: fromUserId,
+      toUserId: toUserId,
+      text: text,
+      createdAt: createdAt,
+      readAt: readAt ?? this.readAt,
+    );
+  }
 }
 
 /// Serviço de chat direto (Supabase).
@@ -109,6 +120,87 @@ class DirectMessageService {
   final List<void Function()> _unreadChangeListeners = [];
   RealtimeChannel? _realtimeChannel;
 
+  // --- Chat aberto: recibos de leitura + typing ---
+  RealtimeChannel? _chatChannel;
+  final List<void Function(DirectMessage)> _readReceiptListeners = [];
+  final List<void Function(bool)> _typingListeners = [];
+
+  /// Abre canal exclusivo para a conversa aberta (recibos + typing).
+  void openChatSession(String peerUserId) {
+    final client = _client;
+    final myId = _userId;
+    if (client == null || myId == null || peerUserId.isEmpty) return;
+    if (_chatChannel != null) closeChatSession();
+
+    // Canal nomeado de forma única e simétrica para os dois usuários.
+    final ids = [myId, peerUserId]..sort();
+    final channelName = 'dm_chat_${ids[0]}_${ids[1]}';
+
+    _chatChannel = client.channel(channelName);
+    _chatChannel!
+        // Recibe atualização de read_at nas minhas mensagens enviadas
+        .onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: _table,
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'from_user_id',
+            value: myId,
+          ),
+          callback: (payload) {
+            try {
+              final map = Map<String, dynamic>.from(payload.newRecord);
+              final msg = DirectMessage.fromMap(map);
+              if (msg.toUserId != peerUserId) return;
+              for (final cb in List.of(_readReceiptListeners)) { cb(msg); }
+            } catch (e) {
+              ServiceLocator.log.d('DirectMessageService readReceipt: $e');
+            }
+          },
+        )
+        // Typing indicator via Broadcast (efêmero, sem gravar no DB)
+        .onBroadcast(
+          event: 'typing',
+          callback: (payload) {
+            try {
+              final senderId = payload['user_id']?.toString();
+              if (senderId != peerUserId) return;
+              final isTyping = payload['is_typing'] == true;
+              for (final cb in List.of(_typingListeners)) { cb(isTyping); }
+            } catch (_) {}
+          },
+        )
+        .subscribe();
+  }
+
+  void closeChatSession() {
+    _chatChannel?.unsubscribe();
+    _chatChannel = null;
+    _readReceiptListeners.clear();
+    _typingListeners.clear();
+  }
+
+  void addReadReceiptListener(void Function(DirectMessage) cb) =>
+      _readReceiptListeners.add(cb);
+  void removeReadReceiptListener(void Function(DirectMessage) cb) =>
+      _readReceiptListeners.remove(cb);
+
+  void addTypingListener(void Function(bool) cb) => _typingListeners.add(cb);
+  void removeTypingListener(void Function(bool) cb) => _typingListeners.remove(cb);
+
+  /// Envia evento de typing para o peer (efêmero via Broadcast).
+  Future<void> broadcastTyping(String peerUserId, {required bool isTyping}) async {
+    final myId = _userId;
+    if (_chatChannel == null || myId == null) return;
+    try {
+      await _chatChannel!.sendBroadcastMessage(
+        event: 'typing',
+        payload: {'user_id': myId, 'is_typing': isTyping},
+      );
+    } catch (_) {}
+  }
+
   /// Regista um listener para mensagens recebidas (Realtime). Usado pela ChatScreen.
   void addIncomingMessageListener(void Function(DirectMessage) cb) {
     _incomingMessageListeners.add(cb);
@@ -133,7 +225,7 @@ class DirectMessageService {
   }
 
   void _notifyUnreadChanged() {
-    for (final cb in List<void Function()>.from(_unreadChangeListeners)) cb();
+    for (final cb in List<void Function()>.from(_unreadChangeListeners)) { cb(); }
   }
 
   void _ensureRealtimeSubscription() {
@@ -152,7 +244,7 @@ class DirectMessageService {
             try {
               final map = Map<String, dynamic>.from(payload.newRecord);
               final msg = DirectMessage.fromMap(map);
-              for (final cb in List<void Function(DirectMessage)>.from(_incomingMessageListeners)) cb(msg);
+              for (final cb in List<void Function(DirectMessage)>.from(_incomingMessageListeners)) { cb(msg); }
               _notifyUnreadChanged();
             } catch (e) {
               ServiceLocator.log.e('DirectMessageService Realtime parse', tag: 'Chat', error: e);

@@ -9,6 +9,7 @@ import '../../favorites/providers/favorites_provider.dart';
 import '../../playlist/providers/playlist_provider.dart';
 import '../../../core/navigation/app_router.dart';
 import '../../../core/services/share_movie_service.dart';
+import '../../../core/services/vod_watch_history_service.dart';
 import '../widgets/person_modal.dart';
 
 class SeriesDetailScreen extends StatefulWidget {
@@ -151,6 +152,13 @@ class _SeriesDetailScreenState extends State<SeriesDetailScreen> {
     if (extension.startsWith('.')) extension = extension.substring(1);
 
     final url = service.getSeriesEpisodeUrl(episode.id, extension);
+
+    VodWatchHistoryService.instance.addWatchHistory(
+      streamId: widget.series.streamId,
+      name: '${widget.series.name} - S${episode.season}E${episode.episodeNum}',
+      posterUrl: widget.series.streamIcon,
+      contentType: 'series',
+    );
 
     Navigator.pushNamed(
       context,

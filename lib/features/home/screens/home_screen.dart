@@ -45,6 +45,7 @@ import '../../../core/models/channel.dart';
 import '../../../core/models/home_sports_slide.dart';
 import '../../../core/services/home_sports_service.dart';
 import '../../../core/services/vod_watch_history_service.dart';
+import '../../../core/services/movie_cache_service.dart';
 import '../../../core/models/user_profile.dart' show VodWatchHistoryItem;
 
 class HomeScreen extends StatefulWidget {
@@ -90,6 +91,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
     _loadVersion();
     _checkForUpdates();
     if (LicenseConfig.isConfigured) UserActivityService.instance.ping();
+    // Mostrar dados em cache imediatamente (sem esperar pela rede)
+    _loadFromCache();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       context.read<ChannelProvider>().addListener(_onChannelProviderChanged);
@@ -586,6 +589,42 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
       ServiceLocator.log.d('HomeScreen: _loadMovieData DONE', tag: 'HomeScreen');
       if (mounted) setState(() => _isLoadingMovies = false);
       _loadContinueWatching();
+      // Guardar em cache para próxima abertura do app
+      _saveToCache();
+    }
+  }
+
+  void _saveToCache() {
+    try {
+      final cache = MovieCacheService.instance;
+      if (_top10Movies.isNotEmpty) cache.saveTop10(_top10Movies);
+      if (_newReleases.isNotEmpty) cache.saveNewReleases(_newReleases);
+      if (_movieCategoryContent.isNotEmpty) {
+        // Guardar apenas as 8 primeiras categorias para não sobrecarregar o cache
+        final limited = Map.fromEntries(
+          _movieCategoryContent.entries.take(8),
+        );
+        cache.saveCategories(limited);
+      }
+    } catch (_) {}
+  }
+
+  void _loadFromCache() {
+    final cache = MovieCacheService.instance;
+    if (!cache.hasCachedData) return;
+    final cachedTop10 = cache.loadTop10();
+    final cachedNew = cache.loadNewReleases();
+    final cachedCats = cache.loadCategories();
+    if (cachedTop10.isNotEmpty || cachedNew.isNotEmpty || cachedCats.isNotEmpty) {
+      setState(() {
+        if (cachedTop10.isNotEmpty) _top10Movies = cachedTop10;
+        if (cachedNew.isNotEmpty) _newReleases = cachedNew;
+        if (cachedCats.isNotEmpty) _movieCategoryContent.addAll(cachedCats);
+        if (cachedTop10.isNotEmpty && _featuredMovie == null) {
+          _featuredMovie = cachedTop10[Random().nextInt(cachedTop10.length)];
+        }
+        _isLoadingMovies = false;
+      });
     }
   }
 
@@ -1189,15 +1228,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
   }
 
   String _buildVodUrlForHistory(VodWatchHistoryItem item) {
-    // Tenta reconstruir a URL VOD a partir das credenciais Xtream
     try {
       final provider = context.read<ChannelProvider>();
       if (!provider.isXtream) return '';
       final service = XtreamService();
       service.configure(provider.xtreamBaseUrl!, provider.xtreamUsername!, provider.xtreamPassword!);
       if (item.contentType == 'series') {
-        // Para séries, a URL não pode ser reconstruída facilmente — abre a home
-        return '';
+        // item.streamId é o episode.id — reconstrói URL do episódio diretamente
+        return service.getSeriesEpisodeUrl(item.streamId, 'mp4');
       }
       return service.getVodStreamUrl(item.streamId, 'mp4');
     } catch (_) {

@@ -189,8 +189,9 @@ class _SeriesDetailScreenState extends State<SeriesDetailScreen> {
     EpisodeWatchedService.instance.markWatched(widget.series.streamId, episode.id);
     if (mounted) setState(() => _watchedEpisodeIds = {..._watchedEpisodeIds, episode.id});
 
+    // Usa episode.id como stream_id para que updateWatchPosition encontre a mesma linha
     VodWatchHistoryService.instance.addWatchHistory(
-      streamId: widget.series.streamId,
+      streamId: episode.id,
       name: '${widget.series.name} - S${episode.season}E${episode.episodeNum}',
       posterUrl: widget.series.streamIcon,
       contentType: 'series',

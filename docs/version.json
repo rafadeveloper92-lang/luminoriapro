@@ -1,27 +1,27 @@
 {
-  "version": "1.4.69",
-  "build": 189,
-  "releaseDate": "2026-04-25",
+  "version": "1.4.70",
+  "build": 190,
+  "releaseDate": "2026-05-12",
   "assets": {
-    "windows": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.69/flutteriptv-Windows-x64-Setup.exe",
+    "windows": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.70/flutteriptv-Windows-x64-Setup.exe",
     "android_mobile": {
-      "arm64-v8a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.69/flutteriptv-Android-arm64.apk",
-      "armeabi-v7a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.69/flutteriptv-Android-arm64.apk",
-      "x86_64": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.69/flutteriptv-Android-arm64.apk"
+      "arm64-v8a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.70/flutteriptv-Android-arm64.apk",
+      "armeabi-v7a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.70/flutteriptv-Android-arm64.apk",
+      "x86_64": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.70/flutteriptv-Android-arm64.apk"
     },
     "android_tv": {
-      "arm64-v8a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.69/flutteriptv-Android-arm64.apk",
-      "armeabi-v7a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.69/flutteriptv-Android-arm64.apk",
-      "x86_64": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.69/flutteriptv-Android-arm64.apk"
+      "arm64-v8a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.70/flutteriptv-Android-arm64.apk",
+      "armeabi-v7a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.70/flutteriptv-Android-arm64.apk",
+      "x86_64": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.70/flutteriptv-Android-arm64.apk"
     },
     "ios": {
-      "universal": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.69/flutteriptv-iOS-unsigned.ipa"
+      "universal": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.70/flutteriptv-iOS-unsigned.ipa"
     }
   },
   "changelog": {
-    "pt": "Correção de build: import em falta de AppRouter no HomeScreen (compilação quebrava o CI em todas as plataformas).",
-    "en": "Build fix: missing AppRouter import in HomeScreen (broke CI on all platforms).",
-    "zh": "修复 HomeScreen 缺少 AppRouter 导入导致 CI 失败"
+    "pt": "Chat premium com recibos de leitura e indicador de digitação • Notificações push FCM com app fechado • Continuar Assistindo com retoma da posição • Pular Abertura/Encerramento com timestamps Aniskip • Auto-próximo episódio • Episódios assistidos marcados • Fix cadeado player • Marcador rolante de conteúdo assistido",
+    "en": "Premium chat with read receipts and typing indicator • FCM push notifications when app is closed • Continue Watching with resume position • Skip Intro/Outro with Aniskip timestamps • Auto-next episode • Watched episodes marked • Player lock fix • Scrolling content marquee",
+    "zh": "高级聊天（已读回执+正在输入）• FCM推送通知 • 继续观看 • Aniskip跳过片头/片尾 • 自动播放下一集"
   },
   "minVersion": "1.0.0"
 }

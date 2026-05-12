@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:provider/provider.dart';
 
 import '../../features/friends/providers/friends_provider.dart';
@@ -24,6 +25,7 @@ class _NotificationBannerOverlayState extends State<NotificationBannerOverlay> {
   StreamSubscription<AppNotification>? _subscription;
   OverlayEntry? _overlayEntry;
   Timer? _dismissTimer;
+  AudioPlayer? _audioPlayer;
 
   @override
   void initState() {
@@ -36,9 +38,23 @@ class _NotificationBannerOverlayState extends State<NotificationBannerOverlay> {
     _subscription = NotificationService.instance.stream.listen(_showBanner);
   }
 
+  Future<void> _playSound(AppNotificationType type) async {
+    // Só toca som para mensagens de amigos
+    if (type != AppNotificationType.newMessage) return;
+    try {
+      _audioPlayer ??= AudioPlayer();
+      await _audioPlayer!.setAsset('assets/sounds/message_received.mp3');
+      await _audioPlayer!.seek(Duration.zero);
+      unawaited(_audioPlayer!.play());
+    } catch (_) {
+      // Falha silenciosa — som não é crítico
+    }
+  }
+
   void _showBanner(AppNotification n) {
     if (!mounted) return;
 
+    _playSound(n.type);
     _dismissTimer?.cancel();
     _removeBanner();
     final overlay = Overlay.of(context);
@@ -110,6 +126,7 @@ class _NotificationBannerOverlayState extends State<NotificationBannerOverlay> {
     _subscription?.cancel();
     _dismissTimer?.cancel();
     _removeBanner();
+    _audioPlayer?.dispose();
     super.dispose();
   }
 
@@ -189,11 +206,11 @@ class _NotificationBannerState extends State<_NotificationBanner>
                     color: const Color(0xFF1A1A1A),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: primary.withValues(alpha: 0.5), width: 1),
-                    boxShadow: [
+                    boxShadow: const [
                       BoxShadow(
                         color: Colors.black54,
                         blurRadius: 12,
-                        offset: const Offset(0, 4),
+                        offset: Offset(0, 4),
                       ),
                     ],
                   ),

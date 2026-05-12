@@ -74,6 +74,10 @@ class AppRouter {
 
       case player:
         final args = settings.arguments as Map<String, dynamic>?;
+        final rawPlaylist = args?['episodePlaylist'];
+        final playlist = rawPlaylist is List
+            ? rawPlaylist.map((e) => Map<String, String>.from(e as Map)).toList()
+            : <Map<String, String>>[];
         return _buildRoute(
           PlayerScreen(
             channelUrl: args?['channelUrl'] ?? '',
@@ -81,6 +85,8 @@ class AppRouter {
             channelLogo: args?['channelLogo'],
             isMultiScreen: args?['isMultiScreen'] ?? false,
             isVod: args?['isVod'] ?? false,
+            episodePlaylist: playlist,
+            episodeStartIndex: args?['episodeStartIndex'] ?? -1,
           ),
           settings,
         );

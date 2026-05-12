@@ -40,6 +40,12 @@ class PlayerScreen extends StatefulWidget {
   /// true quando o conteúdo é filme/série (VOD): concede 1 moeda por minuto assistido.
   final bool isVod;
 
+  /// Lista de episódios da temporada atual para reprodução sequencial.
+  /// Cada entrada: {'url': String, 'name': String, 'episodeId': String}.
+  final List<Map<String, String>> episodePlaylist;
+  /// Índice do episódio atual em [episodePlaylist]. -1 se não for série.
+  final int episodeStartIndex;
+
   const PlayerScreen({
     super.key,
     required this.channelUrl,
@@ -47,6 +53,8 @@ class PlayerScreen extends StatefulWidget {
     this.channelLogo,
     this.isMultiScreen = false,
     this.isVod = false,
+    this.episodePlaylist = const [],
+    this.episodeStartIndex = -1,
   });
 
   @override
@@ -114,6 +122,12 @@ class _PlayerScreenState extends State<PlayerScreen>
   Timer? _watchSessionReportTimer;
   int _lastReportedSessionMinutes = 0;
 
+  // Próximo episódio
+  int _currentEpisodeIndex = -1;
+  bool _showNextEpisodeOverlay = false;
+  int _nextEpisodeCountdown = 10;
+  Timer? _nextEpisodeTimer;
+
   // 检查是否处于分屏模式（使用本地状态）
   bool _isMultiScreenMode() {
     return _localMultiScreenMode && PlatformDetector.isDesktop;
@@ -123,6 +137,7 @@ class _PlayerScreenState extends State<PlayerScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _currentEpisodeIndex = widget.episodeStartIndex;
     // Atualiza status de "assistindo" para amigos (filme/série/canal)
     FriendsService.instance.setUserPlayingContent(widget.channelName);
     // 保持屏幕常亮
@@ -228,6 +243,9 @@ class _PlayerScreenState extends State<PlayerScreen>
       _checkAndShowError();
     }
 
+    // Detectar fim do episódio para mostrar overlay de próximo episódio
+    _checkNextEpisodeOverlay(provider);
+
     // 只有 DLNA 投屏会话时才同步播放状态
     try {
       final dlnaProvider = context.read<DlnaProvider>();
@@ -242,6 +260,138 @@ class _PlayerScreenState extends State<PlayerScreen>
     } catch (e) {
       // DLNA provider 可能不可用，忽略错误
     }
+  }
+
+  bool get _hasNextEpisode =>
+      _currentEpisodeIndex >= 0 &&
+      _currentEpisodeIndex < widget.episodePlaylist.length - 1;
+
+  void _checkNextEpisodeOverlay(PlayerProvider provider) {
+    if (!widget.isVod || !_hasNextEpisode) return;
+    final dur = provider.duration;
+    final pos = provider.position;
+    if (dur <= Duration.zero) return;
+
+    final remaining = dur - pos;
+    final shouldShow = remaining.inSeconds <= 30 && remaining.inSeconds >= 0 && provider.state == PlayerState.playing;
+
+    if (shouldShow && !_showNextEpisodeOverlay) {
+      setState(() {
+        _showNextEpisodeOverlay = true;
+        _nextEpisodeCountdown = remaining.inSeconds.clamp(1, 30);
+      });
+      _startNextEpisodeCountdown();
+    } else if (!shouldShow && _showNextEpisodeOverlay && provider.state == PlayerState.playing) {
+      // Usuário voltou atrás
+      _cancelNextEpisodeOverlay();
+    }
+  }
+
+  void _startNextEpisodeCountdown() {
+    _nextEpisodeTimer?.cancel();
+    _nextEpisodeTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) {
+        t.cancel();
+        return;
+      }
+      setState(() => _nextEpisodeCountdown--);
+      if (_nextEpisodeCountdown <= 0) {
+        t.cancel();
+        _playNextEpisode();
+      }
+    });
+  }
+
+  void _cancelNextEpisodeOverlay() {
+    _nextEpisodeTimer?.cancel();
+    _nextEpisodeTimer = null;
+    if (mounted) setState(() => _showNextEpisodeOverlay = false);
+  }
+
+  void _playNextEpisode() {
+    if (!_hasNextEpisode) return;
+    _cancelNextEpisodeOverlay();
+    final nextIndex = _currentEpisodeIndex + 1;
+    final next = widget.episodePlaylist[nextIndex];
+    final url = next['url']!;
+    final name = next['name']!;
+    setState(() {
+      _currentEpisodeIndex = nextIndex;
+      _isLoading = true;
+    });
+    FriendsService.instance.setUserPlayingContent(name);
+    _playerProvider?.playUrl(url, name: name);
+  }
+
+  Widget _buildNextEpisodeOverlay() {
+    if (!_showNextEpisodeOverlay || !_hasNextEpisode) return const SizedBox.shrink();
+    final nextIndex = _currentEpisodeIndex + 1;
+    final nextName = widget.episodePlaylist[nextIndex]['name'] ?? '';
+    return Positioned(
+      right: 24,
+      bottom: 100,
+      child: AnimatedOpacity(
+        opacity: _showNextEpisodeOverlay ? 1.0 : 0.0,
+        duration: const Duration(milliseconds: 300),
+        child: Container(
+          width: 260,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.85),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white24),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'A seguir',
+                style: TextStyle(color: Colors.white54, fontSize: 12),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                nextName,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _playNextEpisode,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      child: Text(
+                        'Próximo ($_nextEpisodeCountdown)',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    onPressed: _cancelNextEpisodeOverlay,
+                    icon: const Icon(Icons.close, color: Colors.white70, size: 20),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -684,6 +834,9 @@ class _PlayerScreenState extends State<PlayerScreen>
         );
       }
     }
+
+    _nextEpisodeTimer?.cancel();
+    _nextEpisodeTimer = null;
 
     // 然后清除所有错误提示和定时器
     _errorHideTimer?.cancel();
@@ -1385,6 +1538,10 @@ class _PlayerScreenState extends State<PlayerScreen>
                         ),
                       ),
                     ),
+
+                  // Overlay de próximo episódio (séries)
+                  if (_showNextEpisodeOverlay && !_isMultiScreenMode())
+                    _buildNextEpisodeOverlay(),
 
                   // Category Panel (Left side) - 迷你模式和分屏模式下不显示
                   if (_showCategoryPanel &&

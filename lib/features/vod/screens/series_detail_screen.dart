@@ -10,6 +10,7 @@ import '../../playlist/providers/playlist_provider.dart';
 import '../../../core/navigation/app_router.dart';
 import '../../../core/services/share_movie_service.dart';
 import '../../../core/services/vod_watch_history_service.dart';
+import '../../../core/services/episode_watched_service.dart';
 import '../widgets/person_modal.dart';
 
 class SeriesDetailScreen extends StatefulWidget {
@@ -36,10 +37,18 @@ class _SeriesDetailScreenState extends State<SeriesDetailScreen> {
   final Color _accentColor = const Color(0xFFE50914);
   final TmdbService _tmdbService = TmdbService();
 
+  Set<String> _watchedEpisodeIds = {};
+
   @override
   void initState() {
     super.initState();
     _loadAllDetails();
+    _loadWatchedEpisodes();
+  }
+
+  Future<void> _loadWatchedEpisodes() async {
+    final ids = await EpisodeWatchedService.instance.getWatchedEpisodeIds(widget.series.streamId);
+    if (mounted) setState(() => _watchedEpisodeIds = ids);
   }
 
   Future<void> _loadAllDetails() async {
@@ -147,11 +156,26 @@ class _SeriesDetailScreenState extends State<SeriesDetailScreen> {
     final service = XtreamService();
     service.configure(provider.xtreamBaseUrl!, provider.xtreamUsername!, provider.xtreamPassword!);
 
-    String extension = episode.containerExtension;
-    if (extension.isEmpty) extension = 'mp4';
-    if (extension.startsWith('.')) extension = extension.substring(1);
+    final episodesMap = _seriesInfo?.episodes ?? {};
+    final currentEpisodes = _selectedSeasonKey != null ? (episodesMap[_selectedSeasonKey] ?? []) : <XtreamEpisode>[];
 
-    final url = service.getSeriesEpisodeUrl(episode.id, extension);
+    // Constrói playlist da temporada para auto-próximo episódio
+    final playlist = currentEpisodes.map((ep) {
+      String ext = ep.containerExtension;
+      if (ext.isEmpty) ext = 'mp4';
+      if (ext.startsWith('.')) ext = ext.substring(1);
+      return {
+        'url': service.getSeriesEpisodeUrl(ep.id, ext),
+        'name': '${widget.series.name} - S${ep.season}E${ep.episodeNum} - ${ep.title}',
+        'episodeId': ep.id,
+      };
+    }).toList();
+
+    final episodeIndex = currentEpisodes.indexWhere((ep) => ep.id == episode.id);
+
+    // Marcar como assistido localmente
+    EpisodeWatchedService.instance.markWatched(widget.series.streamId, episode.id);
+    if (mounted) setState(() => _watchedEpisodeIds = {..._watchedEpisodeIds, episode.id});
 
     VodWatchHistoryService.instance.addWatchHistory(
       streamId: widget.series.streamId,
@@ -159,6 +183,11 @@ class _SeriesDetailScreenState extends State<SeriesDetailScreen> {
       posterUrl: widget.series.streamIcon,
       contentType: 'series',
     );
+
+    String extension = episode.containerExtension;
+    if (extension.isEmpty) extension = 'mp4';
+    if (extension.startsWith('.')) extension = extension.substring(1);
+    final url = service.getSeriesEpisodeUrl(episode.id, extension);
 
     Navigator.pushNamed(
       context,
@@ -168,8 +197,10 @@ class _SeriesDetailScreenState extends State<SeriesDetailScreen> {
         'channelName': '${widget.series.name} - S${episode.season}E${episode.episodeNum} - ${episode.title}',
         'channelLogo': widget.series.streamIcon,
         'isVod': true,
+        'episodePlaylist': playlist,
+        'episodeStartIndex': episodeIndex,
       },
-    );
+    ).then((_) => _loadWatchedEpisodes());
   }
 
   @override
@@ -553,73 +584,89 @@ class _SeriesDetailScreenState extends State<SeriesDetailScreen> {
   }
 
   Widget _buildEpisodeCard(XtreamEpisode episode) {
-    // ... mesmo código do card ...
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => _playEpisode(episode),
-          borderRadius: BorderRadius.circular(12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    SizedBox(
-                      width: 130,
-                      height: 80,
-                      child: episode.infoUrl != null && episode.infoUrl!.isNotEmpty
-                          ? CachedNetworkImage(
-                              imageUrl: episode.infoUrl!,
-                              fit: BoxFit.cover,
-                              errorWidget: (context, url, error) => Container(
-                                color: Colors.grey[850],
-                                child: const Icon(Icons.movie_filter, color: Colors.white24),
+    final watched = _watchedEpisodeIds.contains(episode.id);
+    return Opacity(
+      opacity: watched ? 0.65 : 1.0,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => _playEpisode(episode),
+            borderRadius: BorderRadius.circular(12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      SizedBox(
+                        width: 130,
+                        height: 80,
+                        child: episode.infoUrl != null && episode.infoUrl!.isNotEmpty
+                            ? CachedNetworkImage(
+                                imageUrl: episode.infoUrl!,
+                                fit: BoxFit.cover,
+                                errorWidget: (context, url, error) => Container(
+                                  color: Colors.grey[850],
+                                  child: const Icon(Icons.movie_filter, color: Colors.white24),
+                                ),
+                              )
+                            : Container(color: Colors.grey[850]),
+                      ),
+                      Container(
+                        width: 130,
+                        height: 80,
+                        color: Colors.black26,
+                        child: watched
+                            ? const Icon(Icons.check_circle, color: Colors.white, size: 32)
+                            : const Icon(Icons.play_circle_fill, color: Colors.white70, size: 32),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              '${episode.episodeNum}. ${episode.title}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
                               ),
-                            )
-                          : Container(color: Colors.grey[850]),
-                    ),
-                    Container(
-                      width: 130,
-                      height: 80,
-                      color: Colors.black26,
-                      child: const Icon(Icons.play_circle_fill, color: Colors.white70, size: 32),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      '${episode.episodeNum}. ${episode.title}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (watched)
+                            const Padding(
+                              padding: EdgeInsets.only(left: 6),
+                              child: Icon(Icons.check_circle, color: Color(0xFF4CAF50), size: 18),
+                            ),
+                        ],
                       ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Episódio ${episode.episodeNum}',
-                      style: const TextStyle(
-                        color: Colors.white54,
-                        fontSize: 12,
+                      const SizedBox(height: 6),
+                      Text(
+                        watched ? 'Assistido' : 'Episódio ${episode.episodeNum}',
+                        style: TextStyle(
+                          color: watched ? const Color(0xFF4CAF50) : Colors.white54,
+                          fontSize: 12,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

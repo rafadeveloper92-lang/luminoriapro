@@ -9,7 +9,7 @@ import '../services/service_locator.dart';
 class DatabaseHelper {
   static Database? _database;
   static const String _databaseName = 'flutter_iptv.db';
-  static const int _databaseVersion = 11; // vod_watch_history no onCreate + migração para quem já tinha v10
+  static const int _databaseVersion = 12; // series_episode_watched para marcar episódios assistidos
 
   Future<void> initialize() async {
     ServiceLocator.log.d('DatabaseHelper: 开始初始化数据库');
@@ -161,6 +161,16 @@ class DatabaseHelper {
       )
     ''');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_vod_watch_history_at ON vod_watch_history(watched_at DESC)');
+
+    // Episode-level watched tracking for series
+    await db.execute('''
+      CREATE TABLE series_episode_watched (
+        series_id TEXT NOT NULL,
+        episode_id TEXT NOT NULL,
+        watched_at INTEGER NOT NULL,
+        PRIMARY KEY (series_id, episode_id)
+      )
+    ''');
 
     // Create indexes for better performance
     await db.execute('CREATE INDEX idx_channels_playlist ON channels(playlist_id)');
@@ -362,6 +372,20 @@ class DatabaseHelper {
         await db.execute('ALTER TABLE friends ADD COLUMN playing_content TEXT');
       } catch (e) {
         ServiceLocator.log.d('Migration error (v10 playing_content): $e');
+      }
+    }
+    if (oldVersion < 12) {
+      try {
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS series_episode_watched (
+            series_id TEXT NOT NULL,
+            episode_id TEXT NOT NULL,
+            watched_at INTEGER NOT NULL,
+            PRIMARY KEY (series_id, episode_id)
+          )
+        ''');
+      } catch (e) {
+        ServiceLocator.log.d('Migration error (series_episode_watched): $e');
       }
     }
     if (oldVersion < 7) {

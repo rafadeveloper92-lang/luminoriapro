@@ -23,6 +23,7 @@ import '../../features/profile/screens/profile_screen.dart';
 import '../../features/profile/screens/inventory_screen.dart';
 import '../../features/rank/screens/global_rank_screen.dart';
 import '../../features/shop/screens/shop_screen.dart';
+import '../../features/admin/screens/announcement_screen.dart';
 
 class AppRouter {
   // Route observer for tracking navigation
@@ -51,6 +52,7 @@ class AppRouter {
   static const String inventory = '/inventory';
   static const String globalRank = '/global-rank';
   static const String shop = '/shop';
+  static const String announcement = '/announcement';
 
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -178,6 +180,9 @@ class AppRouter {
 
       case shop:
         return _buildRoute(const ShopScreen(embedded: false), settings);
+
+      case announcement:
+        return _buildRoute(const AnnouncementScreen(), settings);
 
       default:
         return _buildRoute(

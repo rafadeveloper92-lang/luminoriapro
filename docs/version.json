@@ -1,27 +1,27 @@
 {
-  "version": "1.4.73",
-  "build": 193,
+  "version": "1.4.74",
+  "build": 194,
   "releaseDate": "2026-05-13",
   "assets": {
-    "windows": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.73/flutteriptv-Windows-x64-Setup.exe",
+    "windows": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.74/flutteriptv-Windows-x64-Setup.exe",
     "android_mobile": {
-      "arm64-v8a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.73/flutteriptv-Android-arm64.apk",
-      "armeabi-v7a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.73/flutteriptv-Android-arm64.apk",
-      "x86_64": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.73/flutteriptv-Android-arm64.apk"
+      "arm64-v8a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.74/flutteriptv-Android-arm64.apk",
+      "armeabi-v7a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.74/flutteriptv-Android-arm64.apk",
+      "x86_64": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.74/flutteriptv-Android-arm64.apk"
     },
     "android_tv": {
-      "arm64-v8a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.73/flutteriptv-Android-arm64.apk",
-      "armeabi-v7a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.73/flutteriptv-Android-arm64.apk",
-      "x86_64": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.73/flutteriptv-Android-arm64.apk"
+      "arm64-v8a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.74/flutteriptv-Android-arm64.apk",
+      "armeabi-v7a": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.74/flutteriptv-Android-arm64.apk",
+      "x86_64": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.74/flutteriptv-Android-arm64.apk"
     },
     "ios": {
-      "universal": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.73/flutteriptv-iOS-unsigned.ipa"
+      "universal": "https://github.com/rafadeveloper92-lang/luminoriapro/releases/download/v1.4.74/flutteriptv-iOS-unsigned.ipa"
     }
   },
   "changelog": {
-    "pt": "Hotfix: posição do filme agora é preservada ao fechar e reabrir o app; categorias de filmes não desaparecem mais quando o servidor demora a responder.",
-    "en": "Hotfix: movie position is now preserved when closing and reopening the app; movie categories no longer disappear when the server is slow.",
-    "zh": "热修复：关闭并重新打开应用时现在保留电影位置；服务器响应缓慢时电影类别不再消失。"
+    "pt": "Fix: categorias de filmes agora carregam corretamente (limite de 14 como séries); Top 10 usa filmes trending do TMDB em vez de filmes antigos; categorias do cache mantêm-se visíveis enquanto recarregam.",
+    "en": "Fix: movie categories now load correctly (14 category limit like series); Top 10 uses TMDB trending instead of old movies; cached categories stay visible while reloading.",
+    "zh": "修复：电影类别现在正确加载（与剧集相同的14类别限制）；前10名使用TMDB热门而非旧电影"
   },
   "minVersion": "1.0.0"
 }

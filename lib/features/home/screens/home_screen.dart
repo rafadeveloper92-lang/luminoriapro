@@ -528,21 +528,24 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
           addCategory(c);
         }
 
-        // 6) Completar até ~24 categorias sem duplicar
+        // 6) Completar até 14 categorias (igual ao limite das séries — evita cascade de timeouts)
         for (final c in categories) {
-          if (catsToLoad.length >= 24) break;
+          if (catsToLoad.length >= 14) break;
           addCategory(c);
         }
+        // Hard cap: nunca mais de 14 em paralelo
+        if (catsToLoad.length > 14) catsToLoad.removeRange(14, catsToLoad.length);
 
         final results = await Future.wait([
           _tmdbService.getTrendingMovies().timeout(const Duration(seconds: 5), onTimeout: () => []),
           _tmdbService.getTopRatedMovies().timeout(const Duration(seconds: 5), onTimeout: () => []),
-          ...catsToLoad.map((c) => service.getVodStreams(categoryId: c.categoryId).timeout(const Duration(seconds: 10), onTimeout: () => []))
+          ...catsToLoad.map((c) => service.getVodStreams(categoryId: c.categoryId).timeout(const Duration(seconds: 15), onTimeout: () => []))
         ]);
 
         ServiceLocator.log.d('HomeScreen: Fetched all data', tag: 'HomeScreen');
 
-        _movieCategoryContent.clear();
+        // Não apagar o cache — só substituir as categorias que carregaram com sucesso
+        final newCategoryData = <String, List<XtreamStream>>{};
         final loadedStreams = <XtreamStream>[];
         for (int i = 2; i < results.length; i++) {
             final streams = results[i] as List<XtreamStream>;
@@ -550,26 +553,37 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
             if (streams.isEmpty) continue;
             final cat = catsToLoad[i - 2];
             final displayName = displayNameForCategory(cat);
-            final existing = _movieCategoryContent[displayName];
-            if (existing == null || existing.isEmpty) {
-              _movieCategoryContent[displayName] = streams;
-            } else {
-              final byId = {for (final s in existing) s.streamId: s};
-              for (final s in streams) {
-                byId[s.streamId] = s;
-              }
-              _movieCategoryContent[displayName] = byId.values.toList();
-            }
+            newCategoryData[displayName] = streams;
+        }
+        // Actualiza só as categorias que carregaram — mantém as restantes do cache
+        if (newCategoryData.isNotEmpty) {
+          _movieCategoryContent.addAll(newCategoryData);
         }
 
-        // Lançamentos / mais recentes: ordenar por data `added` do Xtream (mais recente primeiro)
+        // Lançamentos / mais recentes
         final forNewest = List<XtreamStream>.from(loadedStreams);
         forNewest.sort((a, b) => b.addedEpochSeconds.compareTo(a.addedEpochSeconds));
-        // Só actualiza se os dados frescos são melhores que o cache carregado
         if (forNewest.isNotEmpty) _newReleases = forNewest.take(24).toList();
 
-        loadedStreams.sort((a, b) => (double.tryParse(b.rating.toString()) ?? 0).compareTo(double.tryParse(a.rating.toString()) ?? 0));
-        if (loadedStreams.isNotEmpty) _top10Movies = loadedStreams.take(10).toList();
+        // Top 10: tentar cruzar TMDB trending com streams Xtream disponíveis
+        final tmdbTrending = results[0] as List;
+        final top10 = _buildTop10FromTmdb(tmdbTrending, loadedStreams);
+        if (top10.length >= 5) {
+          _top10Movies = top10;
+        } else {
+          // Fallback: filmes mais recentes com rating ≥ 5
+          final recent = loadedStreams
+              .where((s) => (double.tryParse(s.rating.toString()) ?? 0) >= 5.0)
+              .toList()
+            ..sort((a, b) => b.addedEpochSeconds.compareTo(a.addedEpochSeconds));
+          if (recent.isNotEmpty) {
+            _top10Movies = recent.take(10).toList();
+          } else if (loadedStreams.isNotEmpty) {
+            loadedStreams.sort((a, b) => (double.tryParse(b.rating.toString()) ?? 0)
+                .compareTo(double.tryParse(a.rating.toString()) ?? 0));
+            _top10Movies = loadedStreams.take(10).toList();
+          }
+        }
 
         if (loadedStreams.isNotEmpty) {
             _featuredMovie = loadedStreams[Random().nextInt(loadedStreams.length)];
@@ -1112,6 +1126,31 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
         },
       ),
     );
+  }
+
+  /// Cruza os filmes trending do TMDB com os streams Xtream disponíveis por título.
+  List<XtreamStream> _buildTop10FromTmdb(List<dynamic> tmdbMovies, List<XtreamStream> streams) {
+    if (tmdbMovies.isEmpty || streams.isEmpty) return [];
+    final result = <XtreamStream>[];
+    final used = <String>{};
+    for (final m in tmdbMovies) {
+      final tmdbTitle = ((m['title'] ?? m['name'] ?? '') as String).toLowerCase().trim();
+      if (tmdbTitle.isEmpty) continue;
+      // Procura correspondência por título (parcial ou exacta)
+      XtreamStream? match;
+      for (final s in streams) {
+        final sName = s.name.toLowerCase().trim();
+        if (sName == tmdbTitle || sName.contains(tmdbTitle) || tmdbTitle.contains(sName)) {
+          if (!used.contains(s.streamId)) { match = s; break; }
+        }
+      }
+      if (match != null) {
+        result.add(match);
+        used.add(match.streamId);
+        if (result.length >= 10) break;
+      }
+    }
+    return result;
   }
 
   Widget _buildContinueWatchingRow() {

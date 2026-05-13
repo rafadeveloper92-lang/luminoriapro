@@ -565,10 +565,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
         // Lançamentos / mais recentes: ordenar por data `added` do Xtream (mais recente primeiro)
         final forNewest = List<XtreamStream>.from(loadedStreams);
         forNewest.sort((a, b) => b.addedEpochSeconds.compareTo(a.addedEpochSeconds));
-        _newReleases = forNewest.take(24).toList();
+        // Só actualiza se os dados frescos são melhores que o cache carregado
+        if (forNewest.isNotEmpty) _newReleases = forNewest.take(24).toList();
 
         loadedStreams.sort((a, b) => (double.tryParse(b.rating.toString()) ?? 0).compareTo(double.tryParse(a.rating.toString()) ?? 0));
-        _top10Movies = loadedStreams.take(10).toList();
+        if (loadedStreams.isNotEmpty) _top10Movies = loadedStreams.take(10).toList();
 
         if (loadedStreams.isNotEmpty) {
             _featuredMovie = loadedStreams[Random().nextInt(loadedStreams.length)];
@@ -597,14 +598,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver, Ro
   void _saveToCache() {
     try {
       final cache = MovieCacheService.instance;
-      if (_top10Movies.isNotEmpty) cache.saveTop10(_top10Movies);
-      if (_newReleases.isNotEmpty) cache.saveNewReleases(_newReleases);
-      if (_movieCategoryContent.isNotEmpty) {
-        // Guardar apenas as 8 primeiras categorias para não sobrecarregar o cache
-        final limited = Map.fromEntries(
-          _movieCategoryContent.entries.take(8),
-        );
-        cache.saveCategories(limited);
+      // Só guarda se os dados são melhores do que os actuais em cache
+      if (_top10Movies.length >= 5) cache.saveTop10(_top10Movies);
+      if (_newReleases.length >= 5) cache.saveNewReleases(_newReleases);
+      // Guarda categorias só se carregámos pelo menos 3 categorias com conteúdo
+      final filledCats = _movieCategoryContent.entries
+          .where((e) => e.value.length >= 3)
+          .take(10)
+          .toList();
+      if (filledCats.length >= 3) {
+        cache.saveCategories(Map.fromEntries(filledCats));
       }
     } catch (_) {}
   }

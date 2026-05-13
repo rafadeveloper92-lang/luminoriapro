@@ -37,6 +37,14 @@ class VodWatchHistoryService {
     final now = DateTime.now();
     final nowMs = now.millisecondsSinceEpoch;
     try {
+      // Preservar posição/duração guardadas anteriormente para não perder o ponto de retoma
+      final existing = await _db.rawQuery(
+        'SELECT position_ms, duration_ms FROM $_tableLocal WHERE stream_id = ? LIMIT 1',
+        [streamId],
+      );
+      final savedPositionMs = existing.isNotEmpty ? ((existing.first['position_ms'] as int?) ?? 0) : 0;
+      final savedDurationMs = existing.isNotEmpty ? ((existing.first['duration_ms'] as int?) ?? 0) : 0;
+
       await _db.rawQuery(
         'DELETE FROM $_tableLocal WHERE stream_id = ?',
         [streamId],
@@ -47,6 +55,8 @@ class VodWatchHistoryService {
         'poster_url': posterUrl,
         'content_type': contentType,
         'watched_at': nowMs,
+        'position_ms': savedPositionMs,
+        'duration_ms': savedDurationMs,
       });
       final count = await _db.rawQuery('SELECT COUNT(*) as c FROM $_tableLocal');
       final c = (count.first['c'] as int?) ?? 0;
